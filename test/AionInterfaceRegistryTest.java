@@ -1,6 +1,6 @@
 import AionInterfaceRegistry.AionInterfaceRegistryContract;
 import AionInterfaceRegistry.AionInterfaceRegistryInterface;
-import Helper.Interface1ImplementerContract;
+import HelperContracts.Interface1ImplementerContract;
 import org.aion.avm.api.ABIDecoder;
 import org.aion.avm.api.ABIEncoder;
 import org.aion.avm.api.Address;

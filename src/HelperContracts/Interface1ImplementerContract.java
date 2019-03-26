@@ -1,4 +1,4 @@
-package Helper;
+package HelperContracts;
 
 import org.aion.avm.api.ABIDecoder;
 import org.aion.avm.api.Address;

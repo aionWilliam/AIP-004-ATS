@@ -1,3 +1,5 @@
+package HelperContracts;
+
 import org.aion.avm.api.Address;
 
 public interface AIRImplementerInterface {
