@@ -55,18 +55,45 @@ public class AionInterfaceRegistryTest {
 
     @Test
     public void testSetAndGetManager() {
+        // set contract2Address as manager for contract1Address
         TransactionResult txResult1 = callSetManager(contract1Address, contract2Address, contract1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult1.getResultCode());
 
+        // get the manager for contract1Address
         TransactionResult txResult2 = callGetManager(contract1Address, contract1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
+
+        // expect the result to be contract2Address
+        Address result = (Address) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        Assert.assertEquals(Hex.toHexString(contract2Address.unwrap()), Hex.toHexString(result.unwrap()));
+    }
+
+    @Test
+    public void testChangeManager() {
+        // set contract2Address as manager for contract1Address
+        TransactionResult txResult1 = callSetManager(contract1Address, contract2Address, contract1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult1.getResultCode());
+
+        // set contract3Address as the new manager for contract1Address
+        TransactionResult txResult2 = callSetManager(contract1Address, contract3Address, contract1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
+
+        // get the manager for contract1Address
+        TransactionResult txResult3 = callGetManager(contract1Address, contract1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult3.getResultCode());
+
+        // expect the result to be contract3Address
+        Address result = (Address) ABIDecoder.decodeOneObject(txResult3.getReturnData());
+        Assert.assertEquals(Hex.toHexString(contract3Address.unwrap()), Hex.toHexString(result.unwrap()));
     }
 
     @Test
     public void testGetManagerWhenItHasNotBeenSet() {
+        // get the manager for contract1Address
         TransactionResult txResult2 = callGetManager(contract1Address, contract1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
+        // expect the result to be contract1Address
         Address result = (Address) ABIDecoder.decodeOneObject(txResult2.getReturnData());
         Assert.assertEquals(Hex.toHexString(contract1Address.unwrap()) , Hex.toHexString(result.unwrap()));
     }
@@ -95,6 +122,54 @@ public class AionInterfaceRegistryTest {
 
         Address result = (Address) ABIDecoder.decodeOneObject(txResult2.getReturnData());
         Assert.assertEquals(Hex.toHexString(contract1Address.unwrap()) , Hex.toHexString(result.unwrap()));
+    }
+
+    /** Steps:
+     *  - set contract1Address as manager for itself
+     *  - set contract1Address as manager for contract2Address
+     *  - set contract2Address as manager for contract3Address
+     *
+     *  - set contract1Address's interfaceImplementer to be contract3Address , called by contract1Address
+     *  - set contract2Address's interfaceImplementer to be contract3Address , called by contract1Address
+     *  - set contract3Address's interfaceImplementer to be contract1Address , called by contract2Address
+     *
+     *  - check for correctness
+     **/
+
+    @Test
+    public void testAIRContract() {
+        // set managers
+        TransactionResult txResult1 = callSetManager(contract1Address, contract1Address, contract1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult1.getResultCode());
+
+        TransactionResult txResult2 = callSetManager(contract2Address, contract1Address, contract2Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
+
+        TransactionResult txResult3 = callSetManager(contract3Address, contract2Address, contract3Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult3.getResultCode());
+
+        // set interface implementers
+        TransactionResult txResult4 = callSetInterfaceImplementer(contract1Address, generateInterfaceHash("Interface1"), contract3Address, contract1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult4.getResultCode());
+
+        TransactionResult txResult5 = callSetInterfaceImplementer(contract2Address, generateInterfaceHash("Interface1"), contract3Address, contract1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult5.getResultCode());
+
+        TransactionResult txResult6 = callSetInterfaceImplementer(contract3Address, generateInterfaceHash("Interface1"), contract1Address, contract2Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult6.getResultCode());
+
+        // get interface implementers and check if they are all correct
+        TransactionResult txResult7 = callGetInterfaceImplementer(contract1Address, generateInterfaceHash("Interface1"), contract1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult7.getResultCode());
+        Assert.assertEquals(Hex.toHexString(contract3Address.unwrap()) , Hex.toHexString(((Address) ABIDecoder.decodeOneObject(txResult7.getReturnData())).unwrap()));
+
+        TransactionResult txResult8 = callGetInterfaceImplementer(contract2Address, generateInterfaceHash("Interface1"), contract1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult8.getResultCode());
+        Assert.assertEquals(Hex.toHexString(contract3Address.unwrap()) , Hex.toHexString(((Address) ABIDecoder.decodeOneObject(txResult8.getReturnData())).unwrap()));
+
+        TransactionResult txResult9 = callGetInterfaceImplementer(contract3Address, generateInterfaceHash("Interface1"), contract1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult9.getResultCode());
+        Assert.assertEquals(Hex.toHexString(contract1Address.unwrap()) , Hex.toHexString(((Address) ABIDecoder.decodeOneObject(txResult9.getReturnData())).unwrap()));
     }
 
     /** ========= AIR Contract Calling Methods========= */
