@@ -1,10 +1,14 @@
 package AionTokenStandard;
 
+import AionInterfaceRegistry.AionInterfaceRegistryContract;
 import org.aion.avm.api.ABIDecoder;
 import org.aion.avm.api.Address;
 import org.aion.avm.api.BlockchainRuntime;
 import org.aion.avm.userlib.AionList;
 import org.aion.avm.userlib.AionMap;
+
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class AionTokenStandardContract {
 
@@ -74,14 +78,6 @@ public class AionTokenStandardContract {
         return ledger.getOrDefault(tokenHolder, 0L);
     }
 
-//    public static long allowance(Address tokenOwner, Address spender) {
-//        if (!allowance.containsKey(tokenOwner)) {
-//            return 0L;
-//        }
-//
-//        return allowance.get(tokenOwner).getOrDefault(spender, 0L);
-//    }
-
     /**
      * Set a third party operator address as an operator of caller to send, burn or freeze tokens on its behalf.
      *
@@ -100,7 +96,7 @@ public class AionTokenStandardContract {
             newOperatorList.add(operator);
             operators.put(caller,newOperatorList);
         }
-        // todo: log(AuthorizedOperator)
+        ATSContractEvents.emitAuthorizedOperatorEvent(operator, caller);
     }
 
     /**
@@ -117,8 +113,7 @@ public class AionTokenStandardContract {
                 operators.get(caller).remove(operator);
             }
         }
-        // todo: log(RevokedOperator)
-
+        ATSContractEvents.emitRevokedOperatorEvent(operator, caller);
     }
 
     /**
@@ -166,10 +161,11 @@ public class AionTokenStandardContract {
      * Burn the amount of tokens from the caller address
      *
      * @param amount number of tokens to send
+     * @param senderData information from the sender
      */
-    public static void burn(long amount) {
+    public static void burn(long amount, byte[] senderData) {
         Address caller = BlockchainRuntime.getCaller();
-        doBurn(caller, caller, amount, new byte[0]);
+        doBurn(caller, caller, amount, senderData, new byte[0]);
     }
 
     /**
@@ -177,12 +173,13 @@ public class AionTokenStandardContract {
      *
      * @param from token holder
      * @param amount number of tokens to send
+     * @param senderData information from the sender
      * @param operatorData information from the operator
      */
-    public static void operatorBurn(Address from, long amount, byte[] operatorData) {
+    public static void operatorBurn(Address from, long amount, byte[] senderData, byte[] operatorData) {
         Address caller = BlockchainRuntime.getCaller();
         BlockchainRuntime.require(operators.get(from).contains(caller));
-        doBurn(caller, from, amount, operatorData);
+        doBurn(caller, from, amount, senderData, operatorData);
     }
 
     /**
@@ -212,13 +209,13 @@ public class AionTokenStandardContract {
         ledger.put(from, senderOriginalBalance - amount);
         ledger.put(to, receiverOriginalBalance + amount);
 
-        // todo: log(sent), call sender, call recipient
+        ATSContractEvents.emitSentEvent(operator, from, to, amount, data, operatorData);
     }
 
     /**
      * The internal burn implementation
      */
-    private static void doBurn (Address operator, Address from, long amount, byte[] operatorData) {
+    private static void doBurn (Address operator, Address from, long amount, byte[] senderData, byte[] operatorData) {
         BlockchainRuntime.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
 
         long senderOriginalBalance = ledger.get(from);
@@ -227,7 +224,7 @@ public class AionTokenStandardContract {
         ledger.put(from, senderOriginalBalance - amount);
         tokenTotalSupply = tokenTotalSupply - amount;
 
-        // todo: log(burned), call sender, call recipient
+        ATSContractEvents.emitBurnedEvent(operator, from, amount, senderData, operatorData);
     }
 
     /**
@@ -270,5 +267,135 @@ public class AionTokenStandardContract {
      */
     public static byte[] main() {
         return ABIDecoder.decodeAndRunWithClass(AionTokenStandardContract.class, BlockchainRuntime.getData());
+    }
+
+    /**
+     * Events that this contract emits.
+     */
+
+    public static class ATSContractEvents {
+        private static String EmitSentEventString = "SentEvent";
+        private static String EmitThawedEventString = "ThawedEvent";
+        private static String EmitFrozeEventString = "FrozeEvent";
+        private static String EmitMintedEventString = "MintedEvent";
+        private static String EmitBurnedEventString = "BurnedEvent";
+        private static String EmitAuthorizedOperatorEventString = "AuthorizedOperatorEvent";
+        private static String EmitRevokedOperatorEventString = "RevokedOperatorEvent";
+
+        public static void emitSentEvent(Address operator, Address from, Address to, long amount, byte[] senderData, byte[] operatorData) {
+            byte[][] data = new byte[6][];
+            data[0] = operator.unwrap();
+            data[1] = from.unwrap();
+            data[2] = to.unwrap();
+            data[3] = ByteArrayHelpers.longToBytes(amount); //todo: check if compiles
+            data[4] = senderData;
+            data[5] = operatorData;
+
+            BlockchainRuntime.log(EmitSentEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenateMultiple(data));
+        }
+
+        public static void emitThawedEvent(Address localRecipient, byte[] remoteSender, long amount, byte[] bridgeID, byte[] bridgeData, byte[] remoteBridgeId, byte[] remoteData ) {
+            byte[][] data = new byte[7][];
+            data[0] = localRecipient.unwrap();
+            data[1] = remoteSender;
+            data[2] = ByteArrayHelpers.longToBytes(amount); //todo: check if compiles
+            data[3] = bridgeID;
+            data[4] = bridgeData;
+            data[5] = remoteBridgeId;
+            data[6] = remoteData;
+
+            BlockchainRuntime.log(EmitThawedEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenateMultiple(data));
+        }
+
+        public static void emitFrozeEvent(Address localSender, byte[] remoteRecipient, long amount, byte[] bridgeID, byte[] localData ) {
+            byte[][] data = new byte[5][];
+            data[0] = localSender.unwrap();
+            data[1] = remoteRecipient;
+            data[2] = ByteArrayHelpers.longToBytes(amount); //todo: check if compiles
+            data[3] = bridgeID;
+            data[4] = localData;
+
+            BlockchainRuntime.log(EmitFrozeEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenateMultiple(data));
+        }
+
+        public static void emitMintedEvent(Address operator, Address to, long amount, byte[] operatorData) {
+            byte[][] data = new byte[4][];
+            data[0] = operator.unwrap();
+            data[1] = to.unwrap();
+            data[2] = ByteArrayHelpers.longToBytes(amount); //todo: check if compiles
+            data[3] = operatorData;
+
+            BlockchainRuntime.log(EmitMintedEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenateMultiple(data));
+        }
+
+        public static void emitBurnedEvent(Address operator, Address from, long amount, byte[] senderData, byte[] operatorData) {
+            byte[][] data = new byte[5][];
+            data[0] = operator.unwrap();
+            data[1] = from.unwrap();
+            data[2] = ByteArrayHelpers.longToBytes(amount); //todo: check if compiles
+            data[3] = senderData;
+            data[4] = operatorData;
+
+            BlockchainRuntime.log(EmitBurnedEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenateMultiple(data));
+        }
+
+        public static void emitAuthorizedOperatorEvent(Address operator, Address tokenHolder) {
+            BlockchainRuntime.log(EmitAuthorizedOperatorEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenate(operator.unwrap(), tokenHolder.unwrap()));
+        }
+
+        public static void emitRevokedOperatorEvent(Address operator, Address tokenHolder) {
+            BlockchainRuntime.log(EmitRevokedOperatorEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenate(operator.unwrap(), tokenHolder.unwrap()));
+        }
+    }
+
+    /**
+     * Helper classes for manipulating byte arrays.
+     */
+    public static class ByteArrayWrapper {
+        private byte[] bytes;
+
+        ByteArrayWrapper(byte[] bytes) {
+            this.bytes = bytes;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (!(other instanceof AionTokenStandardContract.ByteArrayWrapper)) {
+                return false;
+            }
+            return Arrays.equals(this.bytes, ((AionTokenStandardContract.ByteArrayWrapper)other).getBytes());
+        }
+
+        @Override
+        public int hashCode(){
+            return 1;
+        }
+
+        byte[] getBytes() {
+            return this.bytes;
+        }
+    }
+
+    public static class ByteArrayHelpers {
+        public static byte[] concatenate(byte[] one, byte[] two) {
+            byte[] result = new byte[one.length + two.length];
+            System.arraycopy(one, 0, result, 0, one.length);
+            System.arraycopy(two, 0, result, one.length, two.length);
+            return result;
+        }
+
+        public static byte[] concatenateMultiple(byte[][] bytes) {
+            byte[] result = new byte[0];
+            for (byte[] bytes1: bytes) {
+                result = concatenate(result, bytes1);
+            }
+            return result;
+        }
+
+        public static byte[] longToBytes(long x) {
+            ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+            buffer.putLong(x);
+            return buffer.array();
+        }
     }
 }
