@@ -2,7 +2,6 @@ package AionInterfaceRegistry;
 
 import org.aion.avm.api.*;
 import org.aion.avm.userlib.AionMap;
-
 import java.math.BigInteger;
 import java.util.Arrays;
 
@@ -34,6 +33,7 @@ public class AionInterfaceRegistryContract {
         } else {
             managers.put(target, newManager);
         }
+        AIRContractEvents.emitManagerChangedEvent(target, newManager);
     }
 
     /**
@@ -55,7 +55,6 @@ public class AionInterfaceRegistryContract {
      */
     public static void setInterfaceImplementer(Address target, byte[] interfaceHash, Address implementer) {
         Address caller = BlockchainRuntime.getCaller();
-
         Address manager = getManager(target);
         BlockchainRuntime.require(manager.equals(caller));
 
@@ -67,14 +66,18 @@ public class AionInterfaceRegistryContract {
             BlockchainRuntime.require(result);
         }
 
+        // set up inner interfaces map
         AionMap<ByteArrayWrapper, Address> interfacesImplemented;
         if (interfaces.containsKey(target)) {
             interfacesImplemented = interfaces.get(target);
         } else {
             interfacesImplemented = new AionMap<>();
         }
+
+        // put new interface and implementer into the map
         interfacesImplemented.put(new ByteArrayWrapper(interfaceHash), implementer);
         interfaces.put(target, interfacesImplemented);
+        AIRContractEvents.emitInterfaceImplementerSetEvent(target, interfaceHash, implementer);
     }
 
     private boolean verifyImplementsInterface() {
@@ -111,6 +114,31 @@ public class AionInterfaceRegistryContract {
         return ABIDecoder.decodeAndRunWithClass(AionInterfaceRegistryContract.class, BlockchainRuntime.getData());
     }
 
+    /**
+     * Events that this contract emits.
+     */
+
+    public static class AIRContractEvents {
+        private static String EmitInterfaceImplementerSetEventString = "InterfaceImplementerSetEvent";
+        private static String EmitManagerChangedEventString = "ManagerChangedEvent";
+
+        public static void emitInterfaceImplementerSetEvent(Address target, byte[] interfaceHash, Address delegate) {
+            byte[][] data = new byte[3][];
+            data[0] = target.unwrap();
+            data[1] = interfaceHash;
+            data[2] = delegate.unwrap();
+
+            BlockchainRuntime.log(EmitInterfaceImplementerSetEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
+        }
+
+        public static void emitManagerChangedEvent(Address target, Address newManager) {
+            BlockchainRuntime.log(EmitManagerChangedEventString.getBytes(), ByteArrayHelpers.concatenate(target.unwrap(), newManager.unwrap()));
+        }
+    }
+
+    /**
+     * Helper classes for manipulating byte arrays.
+     */
     public static class ByteArrayWrapper {
         private byte[] bytes;
 
@@ -133,6 +161,23 @@ public class AionInterfaceRegistryContract {
 
         byte[] getBytes() {
             return this.bytes;
+        }
+    }
+
+    public static class ByteArrayHelpers {
+        public static byte[] concatenate(byte[] one, byte[] two) {
+            byte[] result = new byte[one.length + two.length];
+            System.arraycopy(one, 0, result, 0, one.length);
+            System.arraycopy(two, 0, result, one.length, two.length);
+            return result;
+        }
+
+        public static byte[] concatenateMultiple(byte[][] bytes) {
+            byte[] result = new byte[0];
+            for (byte[] bytes1: bytes) {
+                result = concatenate(result, bytes1);
+            }
+            return result;
         }
     }
 }
