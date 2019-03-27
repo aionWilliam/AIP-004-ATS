@@ -1,7 +1,11 @@
 package AionInterfaceRegistry;
 
 import org.aion.avm.api.*;
+import org.aion.avm.tooling.abi.Callable;
 import org.aion.avm.userlib.AionMap;
+import org.aion.avm.userlib.abi.ABIDecoder;
+import org.aion.avm.userlib.abi.ABIEncoder;
+
 import java.math.BigInteger;
 import java.util.Arrays;
 
@@ -14,9 +18,11 @@ public class AionInterfaceRegistryContract {
 
     /**
      * Called to get the address of the manager which controls the registration of the 'target'.
+     *
      * @param target Address supporting an interface.
      * @return the target's manager.
      */
+    @Callable
     public static Address getManager(Address target) {
         // by defult the manager of an address is itself
         return managers.getOrDefault(target, target);
@@ -24,9 +30,11 @@ public class AionInterfaceRegistryContract {
 
     /**
      * Called to set the address of the manager which controls the registration of the 'target'.
+     *
      * @param target Address supporting an interface.
      * @param newManager Address of the manager for 'target'.
      */
+    @Callable
     public static void setManager(Address target, Address newManager) {
         if (target == newManager) { // if setting self as manager, remove old manager if it is present
             managers.remove(target); // note in solidity impl, they set the manager to 0x0
@@ -43,25 +51,29 @@ public class AionInterfaceRegistryContract {
      * @param interfaceHash sha256 hash of the interface.
      * @return The address of the contract which implements the interface 'interfaceHash' for 'target'
      */
+    @Callable
     public static Address getInterfaceImplementer(Address target, byte[] interfaceHash) {
        return interfaces.get(target).get(new ByteArrayWrapper(interfaceHash));
     }
 
     /**
      * Called to set the address of the delegate which implements the interface 'interfaceHash' on behalf of the 'target'.
+     *
      * @param target Address supporting an interface.
      * @param interfaceHash sha256 hash of the interface.
      * @param implementer Address implementing the interface on behalf of 'target'.
      */
+    @Callable
     public static void setInterfaceImplementer(Address target, byte[] interfaceHash, Address implementer) {
         Address caller = BlockchainRuntime.getCaller();
         Address manager = getManager(target);
-        BlockchainRuntime.require(manager.equals(caller));
+        BlockchainRuntime.require(manager.equals(caller) || target.equals(caller)); // should only allow manager and target itself to set implementer
 
+        // if the caller is not the implementer, call the implementer to verify it implements the AIRImplementerInterface
         if (!implementer.equals(caller)) {
-            // call the implementer to verify it implements the AIRImplementerInterface
             Result callResult = BlockchainRuntime.call(implementer, BigInteger.ZERO, ABIEncoder.encodeMethodArguments("isImplementerFor", target, interfaceHash), 10_000_000);
-            byte[] data = callResult.getReturnData(); // todo: check for null and decide what to do
+            BlockchainRuntime.require(callResult != null);
+            byte[] data = callResult.getReturnData();
             boolean result = (boolean)ABIDecoder.decodeOneObject(data);
             BlockchainRuntime.require(result);
         }
@@ -78,11 +90,6 @@ public class AionInterfaceRegistryContract {
         interfacesImplemented.put(new ByteArrayWrapper(interfaceHash), implementer);
         interfaces.put(target, interfacesImplemented);
         AIRContractEvents.emitInterfaceImplementerSetEvent(target, interfaceHash, implementer);
-    }
-
-    private boolean verifyImplementsInterface() {
-        return true; //todo: WIP
-        //            Result callResult = BlockchainRuntime.call(implementer, BigInteger.ZERO, ABIEncoder.encodeMethodArguments(AIRImplementerInterface.class.getDeclaredMethods()[0].getName()"isImplementerFor"), 10_000_000);
     }
 
     /**
@@ -104,14 +111,6 @@ public class AionInterfaceRegistryContract {
         aionInterfaceRegistryContract = new AionInterfaceRegistryContract();
         managers = new AionMap<>();
         interfaces = new AionMap<>();
-    }
-
-
-    /**
-     * Entry point at a transaction call.
-     */
-    public static byte[] main() {
-        return ABIDecoder.decodeAndRunWithClass(AionInterfaceRegistryContract.class, BlockchainRuntime.getData());
     }
 
     /**

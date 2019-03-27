@@ -1,11 +1,12 @@
 package AionTokenStandard;
 
 import AionInterfaceRegistry.AionInterfaceRegistryContract;
-import org.aion.avm.api.ABIDecoder;
 import org.aion.avm.api.Address;
 import org.aion.avm.api.BlockchainRuntime;
+import org.aion.avm.tooling.abi.Callable;
 import org.aion.avm.userlib.AionList;
 import org.aion.avm.userlib.AionMap;
+import org.aion.avm.userlib.abi.ABIDecoder;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -43,6 +44,7 @@ public class AionTokenStandardContract {
     /**
      * Returns the tokenName of the token.
      */
+    @Callable
     public String getName() {
         return tokenName;
     }
@@ -50,6 +52,7 @@ public class AionTokenStandardContract {
     /**
      * Returns the tokenSymbol of the token.
      */
+    @Callable
     public String getSymbol() {
         return tokenSymbol;
     }
@@ -57,6 +60,7 @@ public class AionTokenStandardContract {
     /**
      * Returns the total number of minted tokens across all chains.
      */
+    @Callable
     public long getTotalSupply() {
         return tokenTotalSupply;
     }
@@ -64,6 +68,7 @@ public class AionTokenStandardContract {
     /**
      * Get the smallest part of the token that's not divisible.
      */
+    @Callable
     public int getGranularity() {
         return tokenGranularity;
     }
@@ -74,6 +79,7 @@ public class AionTokenStandardContract {
      * @param tokenHolder Address for which the balance is returned
      * @return Amount of token held by tokenHolder in the token contract.
      */
+    @Callable
     public static long balanceOf(Address tokenHolder) {
         return ledger.getOrDefault(tokenHolder, 0L);
     }
@@ -83,6 +89,7 @@ public class AionTokenStandardContract {
      *
      * @param operator Address to set as a operator of caller.
      */
+    @Callable
     public static void authorizeOperator(Address operator) {
         Address caller = BlockchainRuntime.getCaller();
         BlockchainRuntime.require(caller != operator);
@@ -104,6 +111,7 @@ public class AionTokenStandardContract {
      *
      * @param operator Address to rescind as an operator for caller
      */
+    @Callable
     public static void revokeOperator(Address operator) {
         BlockchainRuntime.require(BlockchainRuntime.getCaller() != operator);
         Address caller = BlockchainRuntime.getCaller();
@@ -123,6 +131,7 @@ public class AionTokenStandardContract {
      * @param tokenHolder Address of a token holder which may have the operator address as an operator.
      * @return true if operator is an operator of tokenHolder and false otherwise.
      */
+    @Callable
     public static boolean isOperatorFor(Address operator, Address tokenHolder) {
         if (operators.containsKey(tokenHolder)) {
             return operators.get(tokenHolder).contains(operator);
@@ -137,6 +146,7 @@ public class AionTokenStandardContract {
      * @param amount number of tokens to send
      * @param data information of the transfer
      */
+    @Callable
     public static void send(Address to, long amount, byte[] data) {
         Address caller = BlockchainRuntime.getCaller();
         doSend(caller, caller, to, amount, data, new byte[0]);
@@ -151,6 +161,7 @@ public class AionTokenStandardContract {
      * @param data information of the transfer
      * @param operatorData information from the operator
      */
+    @Callable
     public static void operatorSend(Address from, Address to, long amount, byte[] data, byte[] operatorData) {
         Address caller = BlockchainRuntime.getCaller();
         BlockchainRuntime.require(operators.get(from).contains(caller)); // caller must be an operator of 'from'
@@ -163,6 +174,7 @@ public class AionTokenStandardContract {
      * @param amount number of tokens to send
      * @param senderData information from the sender
      */
+    @Callable
     public static void burn(long amount, byte[] senderData) {
         Address caller = BlockchainRuntime.getCaller();
         doBurn(caller, caller, amount, senderData, new byte[0]);
@@ -176,6 +188,7 @@ public class AionTokenStandardContract {
      * @param senderData information from the sender
      * @param operatorData information from the operator
      */
+    @Callable
     public static void operatorBurn(Address from, long amount, byte[] senderData, byte[] operatorData) {
         Address caller = BlockchainRuntime.getCaller();
         BlockchainRuntime.require(operators.get(from).contains(caller));
@@ -185,6 +198,7 @@ public class AionTokenStandardContract {
     /**
      *  Returns the total supply of tokens currently in circulation on this chain.
      */
+    @Callable
     public static long getLiquidSupply() {
         return tokenTotalSupply - ledger.get(contractAddress);
     }
@@ -260,13 +274,6 @@ public class AionTokenStandardContract {
         contractAddress = BlockchainRuntime.getAddress();
 
         // todo: maybe combine this with constructor
-    }
-
-    /**
-     * Entry point at a transaction call.
-     */
-    public static byte[] main() {
-        return ABIDecoder.decodeAndRunWithClass(AionTokenStandardContract.class, BlockchainRuntime.getData());
     }
 
     /**

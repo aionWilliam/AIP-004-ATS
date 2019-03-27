@@ -1,12 +1,10 @@
 import AionInterfaceRegistry.AionInterfaceRegistryContract;
-import AionInterfaceRegistry.AionInterfaceRegistryInterface;
 import HelperContracts.Interface1ImplementerContract;
-import org.aion.avm.api.ABIDecoder;
-import org.aion.avm.api.ABIEncoder;
 import org.aion.avm.api.Address;
 import org.aion.avm.tooling.AvmRule;
 import org.aion.avm.tooling.hash.HashUtils;
-import org.aion.avm.userlib.AionMap;
+import org.aion.avm.userlib.abi.ABIDecoder;
+import org.aion.avm.userlib.abi.ABIEncoder;
 import org.aion.kernel.AvmTransactionResult;
 import org.aion.vm.api.interfaces.TransactionResult;
 import org.junit.*;
@@ -32,7 +30,7 @@ public class AionInterfaceRegistryTest {
 
     @Before
     public void setup() {
-        byte[] txData = avmRule.getDappBytes(AionInterfaceRegistryContract.class, null, AionInterfaceRegistryInterface.class, AionMap.class);
+        byte[] txData = avmRule.getDappBytes(AionInterfaceRegistryContract.class, null);
         dappAddress = avmRule.deploy(deployer, BigInteger.ZERO, txData, energyLimit, energyPrice).getDappAddress();
         Assert.assertNotNull(dappAddress);
 
@@ -194,7 +192,7 @@ public class AionInterfaceRegistryTest {
     }
 
     /**
-     * use keccak hash for hashcode generation
+     * use sha256 hash for hashcode generation
      */
     private byte[] generateInterfaceHash(String interfaceName) {
         return HashUtils.sha256(interfaceName.getBytes());

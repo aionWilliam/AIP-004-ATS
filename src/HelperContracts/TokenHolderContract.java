@@ -1,13 +1,15 @@
 package HelperContracts;
 
-import org.aion.avm.api.ABIDecoder;
 import org.aion.avm.api.Address;
 import org.aion.avm.api.BlockchainRuntime;
+import org.aion.avm.tooling.abi.Callable;
+import org.aion.avm.userlib.abi.ABIDecoder;
 
 public class TokenHolderContract {
 
     private static String name;
 
+    @Callable
     public static void tokensReceived(Address operator, Address from, Address to, long amount, byte[] userData, byte[] operatorData) {
         BlockchainRuntime.println("TOKENS RECEIVED: " + name
                 + " [operator: " + operator
@@ -19,6 +21,7 @@ public class TokenHolderContract {
                 + " ] \n");
     }
 
+    @Callable
     public static void tokensToSend(Address operator, Address from, Address to, long amount, byte[] userData, byte[] operatorData) {
         BlockchainRuntime.println("TOKENS TO SEND: " + name
                 + " [operator: " + operator
@@ -39,13 +42,6 @@ public class TokenHolderContract {
 
         tokenHolderContract = new TokenHolderContract();
         name = new String((char[]) arguments[0]);
-    }
-
-    /**
-     * Entry point at a transaction call.
-     */
-    public static byte[] main() {
-        return ABIDecoder.decodeAndRunWithClass(TokenHolderContract.class, BlockchainRuntime.getData());
     }
 
 }
