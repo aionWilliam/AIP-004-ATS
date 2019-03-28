@@ -37,7 +37,7 @@ public class AionTokenStandardContract {
         allowance = new AionMap<>();
         operators = new AionMap<>();
         initializeTotalSupply(tokenTotalSupply);
-        AionInterfaceRegistryAddress = AIRAddress; 
+        AionInterfaceRegistryAddress = AIRAddress;
     }
 
     /** ==================================== Basic Token Functionality ==================================== **/
@@ -319,7 +319,7 @@ public class AionTokenStandardContract {
             data[0] = operator.unwrap();
             data[1] = from.unwrap();
             data[2] = to.unwrap();
-            data[3] = ByteArrayHelpers.longToBytes(amount); //todo: check if compiles
+            data[3] = ByteArrayHelpers.longToBytes(amount); 
             data[4] = senderData;
             data[5] = operatorData;
 
@@ -330,7 +330,7 @@ public class AionTokenStandardContract {
             byte[][] data = new byte[7][];
             data[0] = localRecipient.unwrap();
             data[1] = remoteSender;
-            data[2] = ByteArrayHelpers.longToBytes(amount); //todo: check if compiles
+            data[2] = ByteArrayHelpers.longToBytes(amount);
             data[3] = bridgeID;
             data[4] = bridgeData;
             data[5] = remoteBridgeId;
@@ -343,7 +343,7 @@ public class AionTokenStandardContract {
             byte[][] data = new byte[5][];
             data[0] = localSender.unwrap();
             data[1] = remoteRecipient;
-            data[2] = ByteArrayHelpers.longToBytes(amount); //todo: check if compiles
+            data[2] = ByteArrayHelpers.longToBytes(amount);
             data[3] = bridgeID;
             data[4] = localData;
 
@@ -354,7 +354,7 @@ public class AionTokenStandardContract {
             byte[][] data = new byte[4][];
             data[0] = operator.unwrap();
             data[1] = to.unwrap();
-            data[2] = ByteArrayHelpers.longToBytes(amount); //todo: check if compiles
+            data[2] = ByteArrayHelpers.longToBytes(amount);
             data[3] = operatorData;
 
             BlockchainRuntime.log(EmitMintedEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
@@ -364,7 +364,7 @@ public class AionTokenStandardContract {
             byte[][] data = new byte[5][];
             data[0] = operator.unwrap();
             data[1] = from.unwrap();
-            data[2] = ByteArrayHelpers.longToBytes(amount); //todo: check if compiles
+            data[2] = ByteArrayHelpers.longToBytes(amount);
             data[3] = senderData;
             data[4] = operatorData;
 
@@ -381,32 +381,8 @@ public class AionTokenStandardContract {
     }
 
     /**
-     * Helper classes for manipulating byte arrays.
+     * Helper class for manipulating byte arrays.
      */
-    public static class ByteArrayWrapper {
-        private byte[] bytes;
-
-        ByteArrayWrapper(byte[] bytes) {
-            this.bytes = bytes;
-        }
-
-        @Override
-        public boolean equals(Object other) {
-            if (!(other instanceof AionTokenStandardContract.ByteArrayWrapper)) {
-                return false;
-            }
-            return Arrays.equals(this.bytes, ((AionTokenStandardContract.ByteArrayWrapper)other).getBytes());
-        }
-
-        @Override
-        public int hashCode(){
-            return 1;
-        }
-
-        byte[] getBytes() {
-            return this.bytes;
-        }
-    }
 
     public static class ByteArrayHelpers {
         public static byte[] concatenate(byte[] one, byte[] two) {
