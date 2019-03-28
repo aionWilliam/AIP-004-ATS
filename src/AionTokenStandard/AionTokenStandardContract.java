@@ -1,6 +1,5 @@
 package AionTokenStandard;
 
-import AionInterfaceRegistry.AionInterfaceRegistryContract;
 import org.aion.avm.api.Address;
 import org.aion.avm.api.BlockchainRuntime;
 import org.aion.avm.tooling.abi.Callable;
@@ -47,7 +46,7 @@ public class AionTokenStandardContract {
      * Returns the tokenName of the token.
      */
     @Callable
-    public String getName() {
+    public static String getName() {
         return tokenName;
     }
 
@@ -55,7 +54,7 @@ public class AionTokenStandardContract {
      * Returns the tokenSymbol of the token.
      */
     @Callable
-    public String getSymbol() {
+    public static String getSymbol() {
         return tokenSymbol;
     }
 
@@ -63,7 +62,7 @@ public class AionTokenStandardContract {
      * Returns the total number of minted tokens across all chains.
      */
     @Callable
-    public long getTotalSupply() {
+    public static long getTotalSupply() {
         return tokenTotalSupply;
     }
 
@@ -71,7 +70,7 @@ public class AionTokenStandardContract {
      * Get the smallest part of the token that's not divisible.
      */
     @Callable
-    public int getGranularity() {
+    public static int getGranularity() {
         return tokenGranularity;
     }
 
@@ -324,7 +323,7 @@ public class AionTokenStandardContract {
             data[4] = senderData;
             data[5] = operatorData;
 
-            BlockchainRuntime.log(EmitSentEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenateMultiple(data));
+            BlockchainRuntime.log(EmitSentEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
         }
 
         public static void emitThawedEvent(Address localRecipient, byte[] remoteSender, long amount, byte[] bridgeID, byte[] bridgeData, byte[] remoteBridgeId, byte[] remoteData ) {
@@ -337,7 +336,7 @@ public class AionTokenStandardContract {
             data[5] = remoteBridgeId;
             data[6] = remoteData;
 
-            BlockchainRuntime.log(EmitThawedEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenateMultiple(data));
+            BlockchainRuntime.log(EmitThawedEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
         }
 
         public static void emitFrozeEvent(Address localSender, byte[] remoteRecipient, long amount, byte[] bridgeID, byte[] localData ) {
@@ -348,7 +347,7 @@ public class AionTokenStandardContract {
             data[3] = bridgeID;
             data[4] = localData;
 
-            BlockchainRuntime.log(EmitFrozeEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenateMultiple(data));
+            BlockchainRuntime.log(EmitFrozeEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
         }
 
         public static void emitMintedEvent(Address operator, Address to, long amount, byte[] operatorData) {
@@ -358,7 +357,7 @@ public class AionTokenStandardContract {
             data[2] = ByteArrayHelpers.longToBytes(amount); //todo: check if compiles
             data[3] = operatorData;
 
-            BlockchainRuntime.log(EmitMintedEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenateMultiple(data));
+            BlockchainRuntime.log(EmitMintedEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
         }
 
         public static void emitBurnedEvent(Address operator, Address from, long amount, byte[] senderData, byte[] operatorData) {
@@ -369,15 +368,15 @@ public class AionTokenStandardContract {
             data[3] = senderData;
             data[4] = operatorData;
 
-            BlockchainRuntime.log(EmitBurnedEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenateMultiple(data));
+            BlockchainRuntime.log(EmitBurnedEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
         }
 
         public static void emitAuthorizedOperatorEvent(Address operator, Address tokenHolder) {
-            BlockchainRuntime.log(EmitAuthorizedOperatorEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenate(operator.unwrap(), tokenHolder.unwrap()));
+            BlockchainRuntime.log(EmitAuthorizedOperatorEventString.getBytes(), ByteArrayHelpers.concatenate(operator.unwrap(), tokenHolder.unwrap()));
         }
 
         public static void emitRevokedOperatorEvent(Address operator, Address tokenHolder) {
-            BlockchainRuntime.log(EmitRevokedOperatorEventString.getBytes(), AionInterfaceRegistryContract.ByteArrayHelpers.concatenate(operator.unwrap(), tokenHolder.unwrap()));
+            BlockchainRuntime.log(EmitRevokedOperatorEventString.getBytes(), ByteArrayHelpers.concatenate(operator.unwrap(), tokenHolder.unwrap()));
         }
     }
 
