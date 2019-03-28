@@ -86,6 +86,13 @@ public class AionInterfaceRegistryTest {
     }
 
     @Test
+    public void testSetInvalidManagerCallerIsNotTargetOrOldManager() {
+        // contract2Address tries to set itself as manager on contract1Address
+        TransactionResult txResult1 = callSetManager(contract1Address, contract2Address, contract2Address);
+        Assert.assertEquals(AvmTransactionResult.Code.FAILED_REVERT, txResult1.getResultCode());
+    }
+
+    @Test
     public void testGetManagerWhenItHasNotBeenSet() {
         // get the manager for contract1Address
         TransactionResult txResult2 = callGetManager(contract1Address, contract1Address);

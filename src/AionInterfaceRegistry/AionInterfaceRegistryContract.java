@@ -11,8 +11,6 @@ import java.util.Arrays;
 
 public class AionInterfaceRegistryContract {
 
-    // todo: we really should set restriction on setting manager
-    // todo: calling setInterfaceImplementer, maybe allow for both manager and self to set it.
     private static AionMap<Address, AionMap<ByteArrayWrapper, Address>> interfaces; // <contract, <interface hash, implementer>>
     private static AionMap<Address, Address> managers; // <address, its manager>
 
@@ -29,13 +27,17 @@ public class AionInterfaceRegistryContract {
     }
 
     /**
-     * Called to set the address of the manager which controls the registration of the 'target'.
+     * Called to set the address of the manager which controls the registration of the 'target'. Only
+     * the target itself or the current manager can call this.
      *
      * @param target Address supporting an interface.
      * @param newManager Address of the manager for 'target'.
      */
     @Callable
     public static void setManager(Address target, Address newManager) {
+        Address caller = BlockchainRuntime.getCaller();
+        BlockchainRuntime.require(caller.equals(target) || caller.equals(getManager(target)));
+
         if (target == newManager) { // if setting self as manager, remove old manager if it is present
             managers.remove(target); // note in solidity impl, they set the manager to 0x0
         } else {
