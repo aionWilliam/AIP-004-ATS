@@ -285,7 +285,7 @@ public class AionTokenStandardContract {
      *  - Total supply of the token
      */
     static {
-        Object[] arguments = ABIDecoder.decodeArguments(BlockchainRuntime.getData());
+        Object[] arguments = ABIDecoder.decodeDeploymentArguments(BlockchainRuntime.getData());
         BlockchainRuntime.require(arguments != null);
         BlockchainRuntime.require(arguments.length == 4);
 
