@@ -36,12 +36,12 @@ public class TokenHolderContract {
     private static TokenHolderContract tokenHolderContract;
 
     static {
-        Object[] arguments = ABIDecoder.decodeArguments(BlockchainRuntime.getData());
+        Object[] arguments = ABIDecoder.decodeDeploymentArguments(BlockchainRuntime.getData());
         BlockchainRuntime.require(arguments != null);
         BlockchainRuntime.require(arguments.length == 1);
 
         tokenHolderContract = new TokenHolderContract();
-        name = new String((char[]) arguments[0]);
+        name = (String) arguments[0];
     }
 
 }
