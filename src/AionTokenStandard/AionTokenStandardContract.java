@@ -13,7 +13,7 @@ import java.util.Arrays;
 
 public class AionTokenStandardContract {
 
-    /** ================== ATS Contract State ================== **/
+    /** ==================================== ATS Contract State ==================================== **/
     private static String tokenName;
     private static String tokenSymbol;
     private static long tokenTotalSupply;
@@ -40,6 +40,8 @@ public class AionTokenStandardContract {
         initializeTotalSupply(tokenTotalSupply);
         // todo: set interface delegate ("AIP004Token", this.contractAddress)
     }
+
+    /** ==================================== Basic Token Functionality ==================================== **/
 
     /**
      * Returns the tokenName of the token.
@@ -84,6 +86,9 @@ public class AionTokenStandardContract {
         return ledger.getOrDefault(tokenHolder, 0L);
     }
 
+
+    /** ==================================== ERC-777 Operator Functionality ==================================== **/
+
     /**
      * Set a third party operator address as an operator of caller to send, burn or freeze tokens on its behalf.
      *
@@ -109,7 +114,7 @@ public class AionTokenStandardContract {
     /**
      * Remove the right of the operator address from being an operator of caller.
      *
-     * @param operator Address to rescind as an operator for caller
+     * @param operator Address to revoke as an operator for caller
      */
     @Callable
     public static void revokeOperator(Address operator) {
@@ -138,6 +143,8 @@ public class AionTokenStandardContract {
         }
         return false;
     }
+
+    /** ==================================== Token Transfers ==================================== **/
 
     /**
      * Send the amount of tokens from the caller to the recipient
@@ -195,6 +202,8 @@ public class AionTokenStandardContract {
         doBurn(caller, from, amount, senderData, operatorData);
     }
 
+    /** ==================================== Cross-chain Functionality ==================================== **/
+
     /**
      *  Returns the total supply of tokens currently in circulation on this chain.
      */
@@ -202,6 +211,24 @@ public class AionTokenStandardContract {
     public static long getLiquidSupply() {
         return tokenTotalSupply - ledger.get(contractAddress);
     }
+
+    @Callable
+    public static void thaw(Address localRecipient, long amount, byte[] bridgeId, byte[] bridgeData, byte[] removeSender, byte[] remoteData) {
+
+    }
+
+    @Callable
+    public static void freeze(byte[] remoteRecipient, long amount, byte[] bridgeId, byte[] localData) {
+
+    }
+
+    @Callable
+    public static void operatorFreeze(Address localSender, byte[] remoteRecipient, long amount, byte[] bridgeId, byte[] localData) {
+
+    }
+
+
+    /** ==================================== Inner methods ==================================== **/
 
     /**
      * Check if the number is a multiple of the set tokenGranularity.
@@ -272,8 +299,7 @@ public class AionTokenStandardContract {
         Address caller = BlockchainRuntime.getCaller();
         aionTokenStandardContract = new AionTokenStandardContract(name, symbol, granularity, totalSupply, caller);
         contractAddress = BlockchainRuntime.getAddress();
-
-        // todo: maybe combine this with constructor
+        // todo: take in AIR contract address
     }
 
     /**
