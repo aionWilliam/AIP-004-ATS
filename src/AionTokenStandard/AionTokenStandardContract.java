@@ -1,13 +1,12 @@
 package AionTokenStandard;
 
-import org.aion.avm.api.Address;
-import org.aion.avm.api.BlockchainRuntime;
+import org.aion.avm.api.*;
 import org.aion.avm.tooling.abi.Callable;
 import org.aion.avm.userlib.AionList;
 import org.aion.avm.userlib.AionMap;
 import org.aion.avm.userlib.abi.ABIDecoder;
+import org.aion.avm.userlib.AionBuffer;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public class AionTokenStandardContract {
@@ -19,6 +18,7 @@ public class AionTokenStandardContract {
     private static int tokenGranularity;
     private static Address owner;
     private static Address contractAddress;
+    private static Address AionInterfaceRegistryAddress;
 
     private static AionMap<Address, Long> ledger; // <token holder, balance>
     private static AionMap<Address, AionMap<Address, Long>> allowance;  // <token holder, <allowed address, amount>>
@@ -27,7 +27,7 @@ public class AionTokenStandardContract {
     /**
      * Temporary constructor
      */
-    public AionTokenStandardContract(String mName, String mSymbol, int mGranularity, long mTotalSupply, Address mCaller) {
+    public AionTokenStandardContract(String mName, String mSymbol, int mGranularity, long mTotalSupply, Address mCaller, Address AIRAddress) {
         tokenName = mName;
         tokenSymbol = mSymbol;
         tokenGranularity = mGranularity;
@@ -37,7 +37,7 @@ public class AionTokenStandardContract {
         allowance = new AionMap<>();
         operators = new AionMap<>();
         initializeTotalSupply(tokenTotalSupply);
-        // todo: set interface delegate ("AIP004Token", this.contractAddress)
+        AionInterfaceRegistryAddress = AIRAddress; 
     }
 
     /** ==================================== Basic Token Functionality ==================================== **/
@@ -286,19 +286,19 @@ public class AionTokenStandardContract {
     static {
         Object[] arguments = ABIDecoder.decodeDeploymentArguments(BlockchainRuntime.getData());
         BlockchainRuntime.require(arguments != null);
-        BlockchainRuntime.require(arguments.length == 4);
+        BlockchainRuntime.require(arguments.length == 5);
 
-        String name = new String((char[]) arguments[0]);
-        String symbol = new String((char[]) arguments[1]);
+        String name = (String) arguments[0];
+        String symbol = (String) arguments[1];
         int granularity = (int) arguments[2];
         long totalSupply = (long) arguments[3];
+        Address AIRAddress = (Address) arguments[4];
 
         BlockchainRuntime.require(granularity >= 1);
 
         Address caller = BlockchainRuntime.getCaller();
-        aionTokenStandardContract = new AionTokenStandardContract(name, symbol, granularity, totalSupply, caller);
+        aionTokenStandardContract = new AionTokenStandardContract(name, symbol, granularity, totalSupply, caller, AIRAddress);
         contractAddress = BlockchainRuntime.getAddress();
-        // todo: take in AIR contract address
     }
 
     /**
@@ -425,9 +425,9 @@ public class AionTokenStandardContract {
         }
 
         public static byte[] longToBytes(long x) {
-            ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+            AionBuffer buffer = AionBuffer.allocate(Long.BYTES);
             buffer.putLong(x);
-            return buffer.array();
+            return buffer.getArray();
         }
     }
 }
