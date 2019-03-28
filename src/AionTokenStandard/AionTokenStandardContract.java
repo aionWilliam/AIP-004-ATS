@@ -7,8 +7,6 @@ import org.aion.avm.userlib.AionMap;
 import org.aion.avm.userlib.abi.ABIDecoder;
 import org.aion.avm.userlib.AionBuffer;
 
-import java.util.Arrays;
-
 public class AionTokenStandardContract {
 
     /** ==================================== ATS Contract State ==================================== **/
@@ -21,7 +19,6 @@ public class AionTokenStandardContract {
     private static Address AionInterfaceRegistryAddress;
 
     private static AionMap<Address, Long> ledger; // <token holder, balance>
-    private static AionMap<Address, AionMap<Address, Long>> allowance;  // <token holder, <allowed address, amount>>
     private static AionMap<Address, AionList<Address>> operators; // <token holder, list of operators>
 
     /**
@@ -34,7 +31,6 @@ public class AionTokenStandardContract {
         tokenTotalSupply = mTotalSupply;
         owner = mCaller;
         ledger = new AionMap<>();
-        allowance = new AionMap<>();
         operators = new AionMap<>();
         initializeTotalSupply(tokenTotalSupply);
         AionInterfaceRegistryAddress = AIRAddress;
@@ -319,7 +315,7 @@ public class AionTokenStandardContract {
             data[0] = operator.unwrap();
             data[1] = from.unwrap();
             data[2] = to.unwrap();
-            data[3] = ByteArrayHelpers.longToBytes(amount); 
+            data[3] = ByteArrayHelpers.longToBytes(amount);
             data[4] = senderData;
             data[5] = operatorData;
 
