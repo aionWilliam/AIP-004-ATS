@@ -156,7 +156,13 @@ public class AionTokenStandardContract {
     @Callable
     public static void operatorSend(Address from, Address to, long amount, byte[] data, byte[] operatorData) {
         Address caller = BlockchainRuntime.getCaller();
-        BlockchainRuntime.require(operators.get(from).contains(caller)); // caller must be an operator of 'from'
+
+        if (operators.get(from) == null || operators.get(from).isEmpty()) {
+            BlockchainRuntime.require(caller.equals(from)); // if there are no operators, check if caller is from itself
+        } else {
+            BlockchainRuntime.require(operators.get(from).contains(caller)); // else caller must be an operator of 'from'
+        }
+
         doSend(caller, from, to, amount, data, operatorData);
     }
 
@@ -183,7 +189,13 @@ public class AionTokenStandardContract {
     @Callable
     public static void operatorBurn(Address from, long amount, byte[] senderData, byte[] operatorData) {
         Address caller = BlockchainRuntime.getCaller();
-        BlockchainRuntime.require(operators.get(from).contains(caller));
+
+        if (operators.get(from) == null || operators.get(from).isEmpty()) {
+            BlockchainRuntime.require(caller.equals(from)); // if there are no operators, check if caller is from itself
+        } else {
+            BlockchainRuntime.require(operators.get(from).contains(caller)); // else caller must be an operator of 'from'
+        }
+
         doBurn(caller, from, amount, senderData, operatorData);
     }
 
@@ -211,7 +223,6 @@ public class AionTokenStandardContract {
     public static void operatorFreeze(Address localSender, byte[] remoteRecipient, long amount, byte[] bridgeId, byte[] localData) {
 
     }
-
 
     /** ==================================== Inner methods ==================================== **/
 
