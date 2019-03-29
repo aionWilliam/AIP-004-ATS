@@ -227,6 +227,7 @@ public class AionTokenStandardContract {
      */
     private static void doSend(Address operator, Address from, Address to, long amount, byte[] data, byte[] operatorData) {
         BlockchainRuntime.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
+        BlockchainRuntime.require(amount >= 0); // amount must not be negative
 
         long senderOriginalBalance = ledger.get(from);
         BlockchainRuntime.require(senderOriginalBalance >= amount); // amount must be greater or equal to sender balance
@@ -243,6 +244,7 @@ public class AionTokenStandardContract {
      */
     private static void doBurn (Address operator, Address from, long amount, byte[] senderData, byte[] operatorData) {
         BlockchainRuntime.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
+        BlockchainRuntime.require(amount >= 0); // amount must not be negative
 
         long senderOriginalBalance = ledger.get(from);
         BlockchainRuntime.require(senderOriginalBalance >= amount); // amount must be greater or equal to sender balance
