@@ -1,14 +1,14 @@
 import AionInterfaceRegistry.AionInterfaceRegistryContract;
-import AionInterfaceRegistry.AionInterfaceRegistryInterface;
-import HelperContracts.Interface1ImplementerContract;
+import AionTokenStandard.AionTokenStandardContract;
+import HelperContracts.TokenHolderContract;
 import org.aion.avm.api.Address;
 import org.aion.avm.tooling.AvmRule;
 import org.aion.avm.tooling.hash.HashUtils;
-import org.aion.avm.userlib.AionMap;
+import org.aion.avm.userlib.abi.ABIDecoder;
+import org.aion.avm.userlib.abi.ABIEncoder;
 import org.aion.kernel.AvmTransactionResult;
 import org.aion.vm.api.interfaces.TransactionResult;
 import org.junit.*;
-import org.spongycastle.util.encoders.Hex;
 
 import java.math.BigInteger;
 
@@ -20,32 +20,300 @@ public class ATSandAIRIntegrationTest {
     private long energyPrice = 1L;
 
     private Address deployer = avmRule.getPreminedAccount();
-    private Address dappAddress;
 
-    // helper addresses
-    private Address contract1Address;
-    private Address contract2Address;
+    // ATS deployment variables
+    private Address ATSDappAddress;
+    private final String ATSName = "my ats name";
+    private final String ATSSymbol = "my ats symbol";
+    private final int ATSGranularity = 1;
+    private final long ATSTotalSupply = 1_000_000L;
 
+    // helpers
+    private Address AIRDappAddress;
+    private Address tokenHolder1Address;
+    private Address tokenHolder2Address;
+    private String tokenHolder1Name = "token holder 1";
+    private String tokenHolder2Name = "token holder 2";
 
     @Before
     public void setup() {
-        byte[] txData = avmRule.getDappBytes(AionInterfaceRegistryContract.class, null, AionInterfaceRegistryInterface.class, AionMap.class);
-        dappAddress = avmRule.deploy(deployer, BigInteger.ZERO, txData, energyLimit, energyPrice).getDappAddress();
-        Assert.assertNotNull(dappAddress);
+        byte[] txData = avmRule.getDappBytes(AionInterfaceRegistryContract.class, null);
+        AIRDappAddress = avmRule.deploy(deployer, BigInteger.ZERO, txData, energyLimit, energyPrice).getDappAddress();
+        Assert.assertNotNull(AIRDappAddress);
 
-        byte[] txData1 = avmRule.getDappBytes(Interface1ImplementerContract.class, null);
-        contract1Address = avmRule.deploy(deployer, BigInteger.ZERO, txData1, energyLimit, energyPrice).getDappAddress();
-        Assert.assertNotNull(contract1Address);
+        byte[] txData2 = avmRule.getDappBytes(AionTokenStandardContract.class, ABIEncoder.encodeDeploymentArguments(ATSName, ATSSymbol, ATSGranularity, ATSTotalSupply, AIRDappAddress));
+        ATSDappAddress = avmRule.deploy(deployer, BigInteger.ZERO, txData2, energyLimit, energyPrice).getDappAddress();
+        Assert.assertNotNull(ATSDappAddress);
 
-        byte[] txData2 = avmRule.getDappBytes(Interface1ImplementerContract.class, null);
-        contract2Address = avmRule.deploy(deployer, BigInteger.ZERO, txData2, energyLimit, energyPrice).getDappAddress();
-        Assert.assertNotNull(contract2Address);
+        byte[] txData3 = avmRule.getDappBytes(TokenHolderContract.class, ABIEncoder.encodeDeploymentArguments(tokenHolder1Name));
+        tokenHolder1Address = avmRule.deploy(deployer, BigInteger.ZERO, txData3, energyLimit, energyPrice).getDappAddress();
+        Assert.assertNotNull(tokenHolder1Address);
 
-        avmRule.balanceTransfer(deployer, contract1Address, BigInteger.valueOf(1_000_000_000L), energyLimit, energyPrice);
-        avmRule.balanceTransfer(deployer, contract2Address, BigInteger.valueOf(1_000_000_000L), energyLimit, energyPrice);
+        byte[] txData4 = avmRule.getDappBytes(TokenHolderContract.class, ABIEncoder.encodeDeploymentArguments(tokenHolder2Name));
+        tokenHolder2Address = avmRule.deploy(deployer, BigInteger.ZERO, txData4, energyLimit, energyPrice).getDappAddress();
+        Assert.assertNotNull(tokenHolder2Address);
+
+        avmRule.balanceTransfer(deployer, AIRDappAddress, BigInteger.valueOf(1_000_000_000L), energyLimit, energyPrice);
+        avmRule.balanceTransfer(deployer, ATSDappAddress, BigInteger.valueOf(1_000_000_000L), energyLimit, energyPrice);
+
+        avmRule.balanceTransfer(deployer, tokenHolder1Address, BigInteger.valueOf(1_000_000_000L), energyLimit, energyPrice);
+        avmRule.balanceTransfer(deployer, tokenHolder2Address, BigInteger.valueOf(1_000_000_000L), energyLimit, energyPrice);
     }
 
+    @Test
+    public void testGetName() {
+        TransactionResult txResult1 = callGetName(deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult1.getResultCode());
 
+        String decodedResult = (String) ABIDecoder.decodeOneObject(txResult1.getReturnData());
+        Assert.assertEquals(ATSName, decodedResult);
+    }
+
+    @Test
+    public void testGetSymbol() {
+        TransactionResult txResult = callGetSymbol(deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+
+        String decodedResult = (String) ABIDecoder.decodeOneObject(txResult.getReturnData());
+        Assert.assertEquals(ATSSymbol, decodedResult);
+    }
+
+    @Test
+    public void testGetTotalSupply() {
+        TransactionResult txResult = callGetTotalSupply(deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+
+        long decodedResult = (long) ABIDecoder.decodeOneObject(txResult.getReturnData());
+        Assert.assertEquals(ATSTotalSupply, decodedResult);
+    }
+
+    @Test
+    public void testGetGranularity() {
+        TransactionResult txResult = callGetGranularity(deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+
+        int decodedResult = (int) ABIDecoder.decodeOneObject(txResult.getReturnData());
+        Assert.assertEquals(ATSGranularity, decodedResult);
+    }
+
+    @Test
+    public void testCheckBalanceOfUnregisteredAddress() {
+        TransactionResult txResult = callBalanceOf(tokenHolder1Address, tokenHolder1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+
+        long decodedResult = (long) ABIDecoder.decodeOneObject(txResult.getReturnData());
+        Assert.assertEquals(0L, decodedResult);
+    }
+
+    @Test
+    public void testCheckBalanceOfOwnerUponDappDeployment() {
+        TransactionResult txResult = callBalanceOf(deployer, deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+
+        long decodedResult = (long) ABIDecoder.decodeOneObject(txResult.getReturnData());
+        Assert.assertEquals(ATSTotalSupply, decodedResult);
+    }
+
+    @Test
+    public void testAuthorizeAndRevokeOperator() {
+        TransactionResult txResult = callAuthorizeOperator(tokenHolder2Address, tokenHolder1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+
+        TransactionResult txResult2 = callIsOperatorFor(tokenHolder2Address, tokenHolder1Address, deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
+
+        boolean decodedResult = (boolean) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        Assert.assertTrue(decodedResult);
+
+        TransactionResult txResult3 = callRevokeOperatorOperator(tokenHolder2Address, tokenHolder1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult3.getResultCode());
+
+        TransactionResult txResult4 = callIsOperatorFor(tokenHolder2Address, tokenHolder1Address, deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult4.getResultCode());
+
+        boolean decodedResult2 = (boolean) ABIDecoder.decodeOneObject(txResult4.getReturnData());
+        Assert.assertFalse(decodedResult2);
+    }
+
+    @Test
+    public void testSend() {
+        long tokensToSend = 100;
+        byte[] senderData = "sending 100 tokens to tokenHolder1Address".getBytes();
+
+        // send 100 tokens from owner address (deployer) to tokenHolder1Address
+        TransactionResult txResult = callSend(tokenHolder1Address, tokensToSend, senderData, deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+
+        // check token balance of tokenHolder1Address
+        TransactionResult txResult2 = callBalanceOf(tokenHolder1Address, tokenHolder1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
+
+        long decodedResult = (long) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        Assert.assertEquals(tokensToSend, decodedResult);
+
+        // check token balance of owner address (deployer)
+        TransactionResult txResult3 = callBalanceOf(deployer, deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult3.getResultCode());
+
+        long decodedResult2 = (long) ABIDecoder.decodeOneObject(txResult3.getReturnData());
+        Assert.assertEquals(ATSTotalSupply - tokensToSend, decodedResult2);
+    }
+
+    @Test
+    public void testBurn() {
+        long tokensToBurn = 100;
+        byte[] senderData = "burning 100 tokens".getBytes();
+
+        // burn 100 tokens from deployer
+        TransactionResult txResult = callBurn(tokensToBurn, senderData, deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+
+        // check token balance of deployer
+        TransactionResult txResult2 = callBalanceOf(deployer, deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
+
+        long decodedResult = (long) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        Assert.assertEquals(ATSTotalSupply - tokensToBurn, decodedResult);
+
+        // check the decrease in totalSupply
+        TransactionResult txResult3 = callGetTotalSupply(deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult3.getResultCode());
+
+        long decodedResult2 = (long) ABIDecoder.decodeOneObject(txResult3.getReturnData());
+        Assert.assertEquals(ATSTotalSupply - tokensToBurn, decodedResult2);
+    }
+
+    @Test
+    public void testOperatorSend() {
+        long tokensToSend = 100;
+        byte[] senderData = "".getBytes();
+        byte[] operatorData = "sending 100 tokens to tokenHolder1Address on behalf of deployer".getBytes();
+
+        // send 100 tokens from owner address (deployer) to tokenHolder1Address
+        TransactionResult txResult = callOperatorSend(deployer, tokenHolder1Address, tokensToSend, senderData, operatorData, deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+
+        // check token balance of tokenHolder1Address
+        TransactionResult txResult2 = callBalanceOf(tokenHolder1Address, tokenHolder1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
+
+        long decodedResult = (long) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        Assert.assertEquals(tokensToSend, decodedResult);
+
+        // check token balance of owner address (deployer)
+        TransactionResult txResult3 = callBalanceOf(deployer, deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult3.getResultCode());
+
+        long decodedResult2 = (long) ABIDecoder.decodeOneObject(txResult3.getReturnData());
+        Assert.assertEquals(ATSTotalSupply - tokensToSend, decodedResult2);
+    }
+
+    @Test
+    public void testOperatorBurn() {
+        long tokensToBurn = 100;
+        byte[] senderData = "".getBytes();
+        byte[] operatorData = "burning 100 tokens".getBytes();
+
+        // burn 100 tokens from deployer
+        TransactionResult txResult = callOperatorBurn(deployer, tokensToBurn, senderData, operatorData, deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+
+        // check token balance of deployer
+        TransactionResult txResult2 = callBalanceOf(deployer, deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
+
+        long decodedResult = (long) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        Assert.assertEquals(ATSTotalSupply - tokensToBurn, decodedResult);
+
+        // check the decrease in totalSupply
+        TransactionResult txResult3 = callGetTotalSupply(deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult3.getResultCode());
+
+        long decodedResult2 = (long) ABIDecoder.decodeOneObject(txResult3.getReturnData());
+        Assert.assertEquals(ATSTotalSupply - tokensToBurn, decodedResult2);
+    }
+
+    /** ========= ATS Contract Calling Methods========= */
+    private TransactionResult callGetName(Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("getName");
+        return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callGetSymbol(Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("getSymbol");
+        return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callGetTotalSupply(Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("getTotalSupply");
+        return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callGetGranularity(Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("getGranularity");
+        return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callBalanceOf(Address tokenHolder, Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("balanceOf", tokenHolder);
+        return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callAuthorizeOperator(Address operator, Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("authorizeOperator", operator);
+        return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callRevokeOperatorOperator(Address operator, Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("revokeOperator", operator);
+        return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callIsOperatorFor(Address operator, Address tokenHolder, Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("isOperatorFor", operator, tokenHolder);
+        return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callSend(Address to, long amount, byte[] data, Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("send", to, amount, data);
+        return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callBurn(long amount, byte[] data, Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("burn", amount, data);
+        return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callOperatorSend(Address from, Address to, long amount, byte[] data, byte[] operatorData, Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("operatorSend", from, to, amount, data, operatorData);
+        return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callOperatorBurn(Address from, long amount, byte[] data, byte[] operatorData, Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("operatorBurn", from, amount, data, operatorData);
+        return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    /** ========= AIR Contract Calling Methods========= */
+    private TransactionResult callSetManager(Address target, Address newManager, Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("setManager", target, newManager);
+        return avmRule.call(caller, AIRDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callGetManager(Address target, Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("getManager", target);
+        return avmRule.call(caller, AIRDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callSetInterfaceImplementer(Address target, byte[] interfaceHash, Address implementer, Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("setInterfaceImplementer", target, interfaceHash, implementer);
+        return avmRule.call(caller, AIRDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
+
+    private TransactionResult callGetInterfaceImplementer(Address target, byte[] interfaceHash, Address caller) {
+        byte[] txData = ABIEncoder.encodeMethodArguments("getInterfaceImplementer", target, interfaceHash);
+        return avmRule.call(caller, AIRDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
+    }
 
     /**
      * use sha256 hash for hashcode generation
