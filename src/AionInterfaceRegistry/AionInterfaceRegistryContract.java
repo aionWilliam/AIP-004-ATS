@@ -95,17 +95,6 @@ public class AionInterfaceRegistryContract {
     }
 
     /**
-     * Called to get the sha256 hash of an interface given its name as a string interfaceName.
-     * todo: decide if we still want this inside of the contract
-     * @param interfaceName String name of the interface name.
-     * @return the sha256 hash of 'interfaceName'.
-     */
-    private static byte[] interfaceHash(String interfaceName) {
-        return BlockchainRuntime.sha256(interfaceName.getBytes());
-    }
-
-
-    /**
      * Initialization code executed once at the Dapp deployment.
      */
     static {
