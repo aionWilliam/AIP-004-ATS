@@ -4,8 +4,11 @@ import org.aion.avm.api.*;
 import org.aion.avm.tooling.abi.Callable;
 import org.aion.avm.userlib.AionList;
 import org.aion.avm.userlib.AionMap;
-import org.aion.avm.userlib.abi.ABIDecoder;
 import org.aion.avm.userlib.AionBuffer;
+import org.aion.avm.userlib.abi.ABIDecoder;
+import org.aion.avm.userlib.abi.ABIEncoder;
+
+import java.math.BigInteger;
 
 public class AionTokenStandardContract {
 
@@ -15,26 +18,13 @@ public class AionTokenStandardContract {
     private static long tokenTotalSupply;
     private static int tokenGranularity;
     private static Address owner;
-    private static Address contractAddress;
+    private static Address ATSContractAddress;
     private static Address AionInterfaceRegistryAddress;
 
     private static AionMap<Address, Long> ledger; // <token holder, balance>
     private static AionMap<Address, AionList<Address>> operators; // <token holder, list of operators>
 
-    /**
-     * Temporary constructor
-     */
-    public AionTokenStandardContract(String mName, String mSymbol, int mGranularity, long mTotalSupply, Address mCaller, Address AIRAddress) {
-        tokenName = mName;
-        tokenSymbol = mSymbol;
-        tokenGranularity = mGranularity;
-        tokenTotalSupply = mTotalSupply;
-        owner = mCaller;
-        ledger = new AionMap<>();
-        operators = new AionMap<>();
-        initializeTotalSupply(tokenTotalSupply);
-        AionInterfaceRegistryAddress = AIRAddress;
-    }
+    private static final String InterfaceName = "AIP004ATS";
 
     /** ==================================== Basic Token Functionality ==================================== **/
 
@@ -204,7 +194,7 @@ public class AionTokenStandardContract {
      */
     @Callable
     public static long getLiquidSupply() {
-        return tokenTotalSupply - ledger.get(contractAddress);
+        return tokenTotalSupply - ledger.get(ATSContractAddress);
     }
 
     @Callable
@@ -270,31 +260,44 @@ public class AionTokenStandardContract {
         ledger.put(owner, totalSupply);
     }
 
-    private static AionTokenStandardContract aionTokenStandardContract;
-
     /**
      * Initialization code executed once at the Dapp deployment. Expect 4 arguments:
      *  - Name of the token
      *  - Symbol of the token
      *  - Granularity of the token
      *  - Total supply of the token
+     *  - AIR Address
      */
     static {
         Object[] arguments = ABIDecoder.decodeDeploymentArguments(BlockchainRuntime.getData());
         BlockchainRuntime.require(arguments != null);
         BlockchainRuntime.require(arguments.length == 5);
 
-        String name = (String) arguments[0];
-        String symbol = (String) arguments[1];
-        int granularity = (int) arguments[2];
-        long totalSupply = (long) arguments[3];
-        Address AIRAddress = (Address) arguments[4];
+        // parse inputs
+        tokenName = (String) arguments[0];
+        tokenSymbol = (String) arguments[1];
+        tokenGranularity = (int) arguments[2];
+        tokenTotalSupply = (long) arguments[3];
+        AionInterfaceRegistryAddress = (Address) arguments[4];
+        owner = BlockchainRuntime.getCaller();
 
-        BlockchainRuntime.require(granularity >= 1);
+        // check for inputs todo: decision
+        BlockchainRuntime.require(tokenName.length() > 0);
+        BlockchainRuntime.require(tokenSymbol.length() > 0);
+        BlockchainRuntime.require(tokenGranularity >= 1);
+        BlockchainRuntime.require(tokenTotalSupply >= 0);
+        BlockchainRuntime.require(AionInterfaceRegistryAddress != null);
 
-        Address caller = BlockchainRuntime.getCaller();
-        aionTokenStandardContract = new AionTokenStandardContract(name, symbol, granularity, totalSupply, caller, AIRAddress);
-        contractAddress = BlockchainRuntime.getAddress();
+        // setup inner data structures
+        ledger = new AionMap<>();
+        operators = new AionMap<>();
+        ATSContractAddress = BlockchainRuntime.getAddress();
+        initializeTotalSupply(tokenTotalSupply);
+
+        // register the contract in the provided AIR contract
+        BlockchainRuntime.call(AionInterfaceRegistryAddress, BigInteger.ZERO,
+                ABIEncoder.encodeMethodArguments("setInterfaceImplementer",
+                        ATSContractAddress, BlockchainRuntime.sha256(InterfaceName.getBytes()), ATSContractAddress), 10_000_000);
     }
 
     /**
