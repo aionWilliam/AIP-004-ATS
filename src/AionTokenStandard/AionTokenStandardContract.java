@@ -219,7 +219,7 @@ public class AionTokenStandardContract {
      * Check if the number is a multiple of the set tokenGranularity.
      */
     private static boolean satisfyGranularity(long number) {
-        return  (number / tokenGranularity) == 0 ;
+        return  (number % tokenGranularity) == 0 ;
     }
 
     /**
