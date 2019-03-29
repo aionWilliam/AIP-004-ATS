@@ -104,13 +104,11 @@ public class AionInterfaceRegistryContract {
         return BlockchainRuntime.sha256(interfaceName.getBytes());
     }
 
-    private static AionInterfaceRegistryContract aionInterfaceRegistryContract;
 
     /**
      * Initialization code executed once at the Dapp deployment.
      */
     static {
-        aionInterfaceRegistryContract = new AionInterfaceRegistryContract();
         managers = new AionMap<>();
         interfaces = new AionMap<>();
     }
