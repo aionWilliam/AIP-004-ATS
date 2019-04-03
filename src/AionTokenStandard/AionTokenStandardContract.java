@@ -246,9 +246,9 @@ public class AionTokenStandardContract {
         BlockchainRuntime.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
         BlockchainRuntime.require(amount >= 0); // amount must not be negative
 
-        long senderOriginalBalance = balance.get(from);
+        long senderOriginalBalance = balance.getOrDefault(from, 0L);
         BlockchainRuntime.require(senderOriginalBalance >= amount); // amount must be greater or equal to sender balance
-        long receiverOriginalBalance = balance.get(to) != null ? balance.get(to) : 0;
+        long receiverOriginalBalance = balance.getOrDefault(to, 0L);
 
         balance.put(from, senderOriginalBalance - amount);
         balance.put(to, receiverOriginalBalance + amount);
@@ -263,7 +263,7 @@ public class AionTokenStandardContract {
         BlockchainRuntime.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
         BlockchainRuntime.require(amount >= 0); // amount must not be negative
 
-        long senderOriginalBalance = balance.get(from);
+        long senderOriginalBalance = balance.getOrDefault(from, 0L);
         BlockchainRuntime.require(senderOriginalBalance >= amount); // amount must be greater or equal to sender balance
 
         balance.put(from, senderOriginalBalance - amount);
