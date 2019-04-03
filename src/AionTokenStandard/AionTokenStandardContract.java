@@ -123,10 +123,16 @@ public class AionTokenStandardContract {
      */
     @Callable
     public static boolean isOperatorFor(Address operator, Address tokenHolder) {
-        if (operators.containsKey(tokenHolder)) {
-            return operators.get(tokenHolder).contains(operator);
+        if (operator.equals(tokenHolder)) {
+            return true;
+        } else {
+            if (operators.containsKey(tokenHolder)) {
+                return operators.get(tokenHolder).contains(operator);
+            }
+            else {
+                return false;
+            }
         }
-        return false;
     }
 
     /** ==================================== Token Transfers ==================================== **/
