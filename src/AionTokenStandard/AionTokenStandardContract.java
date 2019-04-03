@@ -212,7 +212,7 @@ public class AionTokenStandardContract {
      */
     @Callable
     public static long getLiquidSupply() {
-        return tokenTotalSupply - balance.get(ATSContractAddress);
+        return tokenTotalSupply - balance.getOrDefault(ATSContractAddress, 0L);
     }
 
     @Callable
