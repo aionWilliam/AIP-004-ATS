@@ -103,8 +103,8 @@ public class AionTokenStandardContract {
      */
     @Callable
     public static void revokeOperator(Address operator) {
-        BlockchainRuntime.require(BlockchainRuntime.getCaller() != operator);
         Address caller = BlockchainRuntime.getCaller();
+        BlockchainRuntime.require(caller != operator);
 
         if (operators.containsKey(caller)) {
             if (operators.get(caller).contains(operator)) {
