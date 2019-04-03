@@ -24,7 +24,7 @@ public class AionTokenStandardContract {
     private static AionMap<Address, Long> ledger; // <token holder, balance>
     private static AionMap<Address, AionList<Address>> operators; // <token holder, list of operators>
 
-    private static final String InterfaceName = "AIP004ATS";
+    private static final String InterfaceName = "AIP004Token";
 
     /** ==================================== Basic Token Functionality ==================================== **/
 
