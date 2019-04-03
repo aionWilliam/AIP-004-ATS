@@ -21,7 +21,7 @@ public class AionTokenStandardContract {
     private static Address ATSContractAddress;
     private static Address AionInterfaceRegistryAddress;
 
-    private static AionMap<Address, Long> ledger; // <token holder, balance>
+    private static AionMap<Address, Long> balance; // <token holder, balance>
     private static AionMap<Address, AionList<Address>> operators; // <token holder, list of operators>
 
     private static final String InterfaceName = "AIP004Token";
@@ -68,7 +68,7 @@ public class AionTokenStandardContract {
      */
     @Callable
     public static long balanceOf(Address tokenHolder) {
-        return ledger.getOrDefault(tokenHolder, 0L);
+        return balance.getOrDefault(tokenHolder, 0L);
     }
 
 
@@ -212,7 +212,7 @@ public class AionTokenStandardContract {
      */
     @Callable
     public static long getLiquidSupply() {
-        return tokenTotalSupply - ledger.get(ATSContractAddress);
+        return tokenTotalSupply - balance.get(ATSContractAddress);
     }
 
     @Callable
@@ -246,12 +246,12 @@ public class AionTokenStandardContract {
         BlockchainRuntime.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
         BlockchainRuntime.require(amount >= 0); // amount must not be negative
 
-        long senderOriginalBalance = ledger.get(from);
+        long senderOriginalBalance = balance.get(from);
         BlockchainRuntime.require(senderOriginalBalance >= amount); // amount must be greater or equal to sender balance
-        long receiverOriginalBalance = ledger.get(to) != null ? ledger.get(to) : 0;
+        long receiverOriginalBalance = balance.get(to) != null ? balance.get(to) : 0;
 
-        ledger.put(from, senderOriginalBalance - amount);
-        ledger.put(to, receiverOriginalBalance + amount);
+        balance.put(from, senderOriginalBalance - amount);
+        balance.put(to, receiverOriginalBalance + amount);
 
         ATSContractEvents.emitSentEvent(operator, from, to, amount, data, operatorData);
     }
@@ -263,10 +263,10 @@ public class AionTokenStandardContract {
         BlockchainRuntime.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
         BlockchainRuntime.require(amount >= 0); // amount must not be negative
 
-        long senderOriginalBalance = ledger.get(from);
+        long senderOriginalBalance = balance.get(from);
         BlockchainRuntime.require(senderOriginalBalance >= amount); // amount must be greater or equal to sender balance
 
-        ledger.put(from, senderOriginalBalance - amount);
+        balance.put(from, senderOriginalBalance - amount);
         tokenTotalSupply = tokenTotalSupply - amount;
 
         ATSContractEvents.emitBurnedEvent(operator, from, amount, senderData, operatorData);
@@ -276,7 +276,7 @@ public class AionTokenStandardContract {
      * Initializing the total supply by giving all the tokens to the contract creator.
      */
     private static void initializeTotalSupply(long totalSupply) {
-        ledger.put(owner, totalSupply);
+        balance.put(owner, totalSupply);
     }
 
     /**
@@ -308,7 +308,7 @@ public class AionTokenStandardContract {
         BlockchainRuntime.require(AionInterfaceRegistryAddress != null);
 
         // setup inner data structures
-        ledger = new AionMap<>();
+        balance = new AionMap<>();
         operators = new AionMap<>();
         ATSContractAddress = BlockchainRuntime.getAddress();
         initializeTotalSupply(tokenTotalSupply);
