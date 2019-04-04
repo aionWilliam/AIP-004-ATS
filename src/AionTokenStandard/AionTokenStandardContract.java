@@ -4,7 +4,6 @@ import org.aion.avm.api.*;
 import org.aion.avm.tooling.abi.Callable;
 import org.aion.avm.userlib.AionList;
 import org.aion.avm.userlib.AionMap;
-import org.aion.avm.userlib.AionBuffer;
 import org.aion.avm.userlib.abi.ABIDecoder;
 import org.aion.avm.userlib.abi.ABIEncoder;
 
@@ -15,13 +14,13 @@ public class AionTokenStandardContract {
     /** ==================================== ATS Contract State ==================================== **/
     private static String tokenName;
     private static String tokenSymbol;
-    private static long tokenTotalSupply;
+    private static BigInteger tokenTotalSupply;
     private static int tokenGranularity;
     private static Address owner;
     private static Address ATSContractAddress;
     private static Address AionInterfaceRegistryAddress;
 
-    private static AionMap<Address, Long> balance; // <token holder, balance>
+    private static AionMap<Address, BigInteger> balance; // <token holder, balance>
     private static AionMap<Address, AionList<Address>> operators; // <token holder, list of operators>
 
     private static final String InterfaceName = "AIP004Token";
@@ -48,8 +47,8 @@ public class AionTokenStandardContract {
      * Returns the total number of minted tokens across all chains.
      */
     @Callable
-    public static long getTotalSupply() {
-        return tokenTotalSupply;
+    public static byte[] getTotalSupply() {
+        return tokenTotalSupply.toByteArray();
     }
 
     /**
@@ -67,8 +66,8 @@ public class AionTokenStandardContract {
      * @return Amount of token held by tokenHolder in the token contract.
      */
     @Callable
-    public static long balanceOf(Address tokenHolder) {
-        return balance.getOrDefault(tokenHolder, 0L);
+    public static byte[] balanceOf(Address tokenHolder) {
+        return balance.getOrDefault(tokenHolder, BigInteger.ZERO).toByteArray();
     }
 
 
@@ -145,9 +144,9 @@ public class AionTokenStandardContract {
      * @param data information of the transfer
      */
     @Callable
-    public static void send(Address to, long amount, byte[] data) {
+    public static void send(Address to, byte[] amount, byte[] data) {
         Address caller = BlockchainRuntime.getCaller();
-        doSend(caller, caller, to, amount, data, new byte[0]);
+        doSend(caller, caller, to, new BigInteger(amount), data, new byte[0]);
     }
 
     /**
@@ -160,7 +159,7 @@ public class AionTokenStandardContract {
      * @param operatorData information from the operator
      */
     @Callable
-    public static void operatorSend(Address from, Address to, long amount, byte[] data, byte[] operatorData) {
+    public static void operatorSend(Address from, Address to, byte[] amount, byte[] data, byte[] operatorData) {
         Address caller = BlockchainRuntime.getCaller();
 
         if (operators.get(from) == null || operators.get(from).isEmpty()) {
@@ -169,7 +168,7 @@ public class AionTokenStandardContract {
             BlockchainRuntime.require(operators.get(from).contains(caller)); // else caller must be an operator of 'from'
         }
 
-        doSend(caller, from, to, amount, data, operatorData);
+        doSend(caller, from, to, new BigInteger(amount), data, operatorData);
     }
 
     /**
@@ -179,9 +178,9 @@ public class AionTokenStandardContract {
      * @param senderData information from the sender
      */
     @Callable
-    public static void burn(long amount, byte[] senderData) {
+    public static void burn(byte[] amount, byte[] senderData) {
         Address caller = BlockchainRuntime.getCaller();
-        doBurn(caller, caller, amount, senderData, new byte[0]);
+        doBurn(caller, caller, new BigInteger(amount), senderData, new byte[0]);
     }
 
     /**
@@ -193,7 +192,7 @@ public class AionTokenStandardContract {
      * @param operatorData information from the operator
      */
     @Callable
-    public static void operatorBurn(Address from, long amount, byte[] senderData, byte[] operatorData) {
+    public static void operatorBurn(Address from, byte[] amount, byte[] senderData, byte[] operatorData) {
         Address caller = BlockchainRuntime.getCaller();
 
         if (operators.get(from) == null || operators.get(from).isEmpty()) {
@@ -202,7 +201,7 @@ public class AionTokenStandardContract {
             BlockchainRuntime.require(operators.get(from).contains(caller)); // else caller must be an operator of 'from'
         }
 
-        doBurn(caller, from, amount, senderData, operatorData);
+        doBurn(caller, from, new BigInteger(amount), senderData, operatorData);
     }
 
     /** ==================================== Cross-chain Functionality ==================================== **/
@@ -211,22 +210,22 @@ public class AionTokenStandardContract {
      *  Returns the total supply of tokens currently in circulation on this chain.
      */
     @Callable
-    public static long getLiquidSupply() {
-        return tokenTotalSupply - balance.getOrDefault(ATSContractAddress, 0L);
+    public static byte[] getLiquidSupply() {
+        return tokenTotalSupply.subtract(balance.get(ATSContractAddress)).toByteArray();
     }
 
     @Callable
-    public static void thaw(Address localRecipient, long amount, byte[] bridgeId, byte[] bridgeData, byte[] removeSender, byte[] remoteData) {
-
-    }
-
-    @Callable
-    public static void freeze(byte[] remoteRecipient, long amount, byte[] bridgeId, byte[] localData) {
+    public static void thaw(Address localRecipient, byte[] amount, byte[] bridgeId, byte[] bridgeData, byte[] removeSender, byte[] remoteData) {
 
     }
 
     @Callable
-    public static void operatorFreeze(Address localSender, byte[] remoteRecipient, long amount, byte[] bridgeId, byte[] localData) {
+    public static void freeze(byte[] remoteRecipient, byte[] amount, byte[] bridgeId, byte[] localData) {
+
+    }
+
+    @Callable
+    public static void operatorFreeze(Address localSender, byte[] remoteRecipient, byte[] amount, byte[] bridgeId, byte[] localData) {
 
     }
 
@@ -235,23 +234,23 @@ public class AionTokenStandardContract {
     /**
      * Check if the number is a multiple of the set tokenGranularity.
      */
-    private static boolean satisfyGranularity(long number) {
-        return  (number % tokenGranularity) == 0 ;
+    private static boolean satisfyGranularity(BigInteger number) {
+        return  (number.mod(BigInteger.valueOf(tokenGranularity)).equals(BigInteger.ZERO));
     }
 
     /**
      * The internal send implementation
      */
-    private static void doSend(Address operator, Address from, Address to, long amount, byte[] data, byte[] operatorData) {
+    private static void doSend(Address operator, Address from, Address to, BigInteger amount, byte[] data, byte[] operatorData) {
         BlockchainRuntime.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
-        BlockchainRuntime.require(amount >= 0); // amount must not be negative
+        BlockchainRuntime.require(amount.signum() > -1); // amount must not be negative, 0 is okay
 
-        long senderOriginalBalance = balance.getOrDefault(from, 0L);
-        BlockchainRuntime.require(senderOriginalBalance >= amount); // amount must be greater or equal to sender balance
-        long receiverOriginalBalance = balance.getOrDefault(to, 0L);
+        BigInteger senderOriginalBalance = balance.get(from);
+        BlockchainRuntime.require(senderOriginalBalance.compareTo(amount) > -1); // amount must be greater or equal to sender balance
+        BigInteger receiverOriginalBalance = balance.get(to) != null ? balance.get(to) : BigInteger.ZERO;
 
-        balance.put(from, senderOriginalBalance - amount);
-        balance.put(to, receiverOriginalBalance + amount);
+        balance.put(from, senderOriginalBalance.subtract(amount));
+        balance.put(to, receiverOriginalBalance.add(amount));
 
         ATSContractEvents.emitSentEvent(operator, from, to, amount, data, operatorData);
     }
@@ -259,15 +258,15 @@ public class AionTokenStandardContract {
     /**
      * The internal burn implementation
      */
-    private static void doBurn (Address operator, Address from, long amount, byte[] senderData, byte[] operatorData) {
+    private static void doBurn (Address operator, Address from, BigInteger amount, byte[] senderData, byte[] operatorData) {
         BlockchainRuntime.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
-        BlockchainRuntime.require(amount >= 0); // amount must not be negative
+        BlockchainRuntime.require(amount.signum() > -1); // amount must not be negative, 0 is okay
 
-        long senderOriginalBalance = balance.getOrDefault(from, 0L);
-        BlockchainRuntime.require(senderOriginalBalance >= amount); // amount must be greater or equal to sender balance
+        BigInteger senderOriginalBalance = balance.get(from);
+        BlockchainRuntime.require(senderOriginalBalance.compareTo(amount) > -1);
 
-        balance.put(from, senderOriginalBalance - amount);
-        tokenTotalSupply = tokenTotalSupply - amount;
+        balance.put(from, senderOriginalBalance.subtract(amount));
+        tokenTotalSupply = tokenTotalSupply .subtract(amount);
 
         ATSContractEvents.emitBurnedEvent(operator, from, amount, senderData, operatorData);
     }
@@ -275,18 +274,17 @@ public class AionTokenStandardContract {
     /**
      * Initializing the total supply by giving all the tokens to the contract creator.
      */
-    private static void initializeTotalSupply(long totalSupply) {
+    private static void initializeTotalSupply(BigInteger totalSupply) {
         balance.put(owner, totalSupply);
         //ATSContractEvents.emitTokenCreatedEvent(totalSupply, owner);
     }
 
     /**
      * Initialization code executed once at the Dapp deployment. Expect 4 arguments:
-     *  - Name of the token
-     *  - Symbol of the token
-     *  - Granularity of the token
-     *  - Total supply of the token
-     *  - AIR Address
+     *  - Name of the token (String)
+     *  - Symbol of the token (String)
+     *  - Granularity of the token (int)
+     *  - Total supply of the token (byte[] representation)
      */
     static {
         Object[] arguments = ABIDecoder.decodeDeploymentArguments(BlockchainRuntime.getData());
@@ -297,14 +295,14 @@ public class AionTokenStandardContract {
         tokenName = (String) arguments[0];
         tokenSymbol = (String) arguments[1];
         tokenGranularity = (int) arguments[2];
-        tokenTotalSupply = (long) arguments[3];
+        tokenTotalSupply = new BigInteger((byte[]) arguments[3]);
         AionInterfaceRegistryAddress = (Address) arguments[4]; // todo: when we deploy, we should hardcode this 
         owner = BlockchainRuntime.getCaller();
 
         BlockchainRuntime.require(tokenName.length() > 0);
         BlockchainRuntime.require(tokenSymbol.length() > 0);
         BlockchainRuntime.require(tokenGranularity >= 1);
-        BlockchainRuntime.require(tokenTotalSupply >= 0);
+        BlockchainRuntime.require(tokenTotalSupply.signum() > -1);
         BlockchainRuntime.require(AionInterfaceRegistryAddress != null);
 
         // setup inner data structures
@@ -333,23 +331,23 @@ public class AionTokenStandardContract {
         private static String EmitRevokedOperatorEventString = "RevokedOperatorEvent";
         private static String EmitTokenCreatedEventString = "TokenCreatedEvent";
 
-        public static void emitSentEvent(Address operator, Address from, Address to, long amount, byte[] senderData, byte[] operatorData) {
+        public static void emitSentEvent(Address operator, Address from, Address to, BigInteger amount, byte[] senderData, byte[] operatorData) {
             byte[][] data = new byte[6][];
             data[0] = operator.unwrap();
             data[1] = from.unwrap();
             data[2] = to.unwrap();
-            data[3] = ByteArrayHelpers.longToBytes(amount);
+            data[3] = amount.toByteArray();
             data[4] = senderData;
             data[5] = operatorData;
 
             BlockchainRuntime.log(EmitSentEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
         }
 
-        public static void emitThawedEvent(Address localRecipient, byte[] remoteSender, long amount, byte[] bridgeID, byte[] bridgeData, byte[] remoteBridgeId, byte[] remoteData ) {
+        public static void emitThawedEvent(Address localRecipient, byte[] remoteSender, BigInteger amount, byte[] bridgeID, byte[] bridgeData, byte[] remoteBridgeId, byte[] remoteData ) {
             byte[][] data = new byte[7][];
             data[0] = localRecipient.unwrap();
             data[1] = remoteSender;
-            data[2] = ByteArrayHelpers.longToBytes(amount);
+            data[2] = amount.toByteArray();
             data[3] = bridgeID;
             data[4] = bridgeData;
             data[5] = remoteBridgeId;
@@ -358,32 +356,32 @@ public class AionTokenStandardContract {
             BlockchainRuntime.log(EmitThawedEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
         }
 
-        public static void emitFrozeEvent(Address localSender, byte[] remoteRecipient, long amount, byte[] bridgeID, byte[] localData ) {
+        public static void emitFrozeEvent(Address localSender, byte[] remoteRecipient, BigInteger amount, byte[] bridgeID, byte[] localData ) {
             byte[][] data = new byte[5][];
             data[0] = localSender.unwrap();
             data[1] = remoteRecipient;
-            data[2] = ByteArrayHelpers.longToBytes(amount);
+            data[2] = amount.toByteArray();
             data[3] = bridgeID;
             data[4] = localData;
 
             BlockchainRuntime.log(EmitFrozeEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
         }
 
-        public static void emitMintedEvent(Address operator, Address to, long amount, byte[] operatorData) {
+        public static void emitMintedEvent(Address operator, Address to, BigInteger amount, byte[] operatorData) {
             byte[][] data = new byte[4][];
             data[0] = operator.unwrap();
             data[1] = to.unwrap();
-            data[2] = ByteArrayHelpers.longToBytes(amount);
+            data[2] = amount.toByteArray();
             data[3] = operatorData;
 
             BlockchainRuntime.log(EmitMintedEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
         }
 
-        public static void emitBurnedEvent(Address operator, Address from, long amount, byte[] senderData, byte[] operatorData) {
+        public static void emitBurnedEvent(Address operator, Address from, BigInteger amount, byte[] senderData, byte[] operatorData) {
             byte[][] data = new byte[5][];
             data[0] = operator.unwrap();
             data[1] = from.unwrap();
-            data[2] = ByteArrayHelpers.longToBytes(amount);
+            data[2] = amount.toByteArray();
             data[3] = senderData;
             data[4] = operatorData;
 
@@ -398,8 +396,8 @@ public class AionTokenStandardContract {
             BlockchainRuntime.log(EmitRevokedOperatorEventString.getBytes(), ByteArrayHelpers.concatenate(operator.unwrap(), tokenHolder.unwrap()));
         }
 
-        public static void emitTokenCreatedEvent(long totalSupply, Address contractOwner){
-            BlockchainRuntime.log(EmitTokenCreatedEventString.getBytes(), ByteArrayHelpers.concatenate(ByteArrayHelpers.longToBytes(totalSupply), contractOwner.unwrap()));
+        public static void emitTokenCreatedEvent(BigInteger totalSupply, Address contractOwner){
+            BlockchainRuntime.log(EmitTokenCreatedEventString.getBytes(), ByteArrayHelpers.concatenate(totalSupply.toByteArray(), contractOwner.unwrap()));
         }
     }
 
@@ -421,12 +419,6 @@ public class AionTokenStandardContract {
                 result = concatenate(result, bytes1);
             }
             return result;
-        }
-
-        public static byte[] longToBytes(long x) {
-            AionBuffer buffer = AionBuffer.allocate(Long.BYTES);
-            buffer.putLong(x);
-            return buffer.getArray();
         }
     }
 }
