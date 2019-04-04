@@ -322,82 +322,77 @@ public class AionTokenStandardContract {
      */
 
     public static class ATSContractEvents {
-        private static String EmitSentEventString = "SentEvent";
-        private static String EmitThawedEventString = "ThawedEvent";
-        private static String EmitFrozeEventString = "FrozeEvent";
-        private static String EmitMintedEventString = "MintedEvent";
-        private static String EmitBurnedEventString = "BurnedEvent";
+        private static String EmitSentEventStringPart1 = "SentEventPart1";
+        private static String EmitSentEventStringPart2 = "SentEventPart2";
+
+        private static String EmitBurnedEventStringPart1 = "BurnedEventPart1";
+        private static String EmitBurnedEventStringPart2 = "BurnedEventPart2";
+
         private static String EmitAuthorizedOperatorEventString = "AuthorizedOperatorEvent";
         private static String EmitRevokedOperatorEventString = "RevokedOperatorEvent";
         private static String EmitTokenCreatedEventString = "TokenCreatedEvent";
 
         public static void emitSentEvent(Address operator, Address from, Address to, BigInteger amount, byte[] senderData, byte[] operatorData) {
-            byte[][] data = new byte[6][];
+            byte[][] data = new byte[3][];
             data[0] = operator.unwrap();
             data[1] = from.unwrap();
             data[2] = to.unwrap();
-            data[3] = amount.toByteArray();
-            data[4] = senderData;
-            data[5] = operatorData;
+            BlockchainRuntime.log(EmitSentEventStringPart1.getBytes(),
+                    "operator".getBytes(),
+                    "from".getBytes(),
+                    "to".getBytes(),
+                    ByteArrayHelpers.concatenateMultiple(data));
 
-            BlockchainRuntime.log(EmitSentEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
-        }
-
-        public static void emitThawedEvent(Address localRecipient, byte[] remoteSender, BigInteger amount, byte[] bridgeID, byte[] bridgeData, byte[] remoteBridgeId, byte[] remoteData ) {
-            byte[][] data = new byte[7][];
-            data[0] = localRecipient.unwrap();
-            data[1] = remoteSender;
-            data[2] = amount.toByteArray();
-            data[3] = bridgeID;
-            data[4] = bridgeData;
-            data[5] = remoteBridgeId;
-            data[6] = remoteData;
-
-            BlockchainRuntime.log(EmitThawedEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
-        }
-
-        public static void emitFrozeEvent(Address localSender, byte[] remoteRecipient, BigInteger amount, byte[] bridgeID, byte[] localData ) {
-            byte[][] data = new byte[5][];
-            data[0] = localSender.unwrap();
-            data[1] = remoteRecipient;
-            data[2] = amount.toByteArray();
-            data[3] = bridgeID;
-            data[4] = localData;
-
-            BlockchainRuntime.log(EmitFrozeEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
-        }
-
-        public static void emitMintedEvent(Address operator, Address to, BigInteger amount, byte[] operatorData) {
-            byte[][] data = new byte[4][];
-            data[0] = operator.unwrap();
-            data[1] = to.unwrap();
-            data[2] = amount.toByteArray();
-            data[3] = operatorData;
-
-            BlockchainRuntime.log(EmitMintedEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
+            byte[][] data2 = new byte[3][];
+            data2[0] = amount.toByteArray();
+            data2[1] = senderData;
+            data2[2] = operatorData;
+            BlockchainRuntime.log(EmitSentEventStringPart2.getBytes(),
+                    "amount".getBytes(),
+                    "senderData".getBytes(),
+                    "operatorData".getBytes(),
+                    ByteArrayHelpers.concatenateMultiple(data2));
         }
 
         public static void emitBurnedEvent(Address operator, Address from, BigInteger amount, byte[] senderData, byte[] operatorData) {
-            byte[][] data = new byte[5][];
+            byte[][] data = new byte[2][];
             data[0] = operator.unwrap();
             data[1] = from.unwrap();
-            data[2] = amount.toByteArray();
-            data[3] = senderData;
-            data[4] = operatorData;
+            BlockchainRuntime.log(EmitBurnedEventStringPart1.getBytes(),
+                    "operator".getBytes(),
+                    "from".getBytes(),
+                    ByteArrayHelpers.concatenateMultiple(data));
 
-            BlockchainRuntime.log(EmitBurnedEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
+            byte[][] data2 = new byte[3][];
+            data2[0] = amount.toByteArray();
+            data2[1] = senderData;
+            data2[2] = operatorData;
+            BlockchainRuntime.log(EmitBurnedEventStringPart2.getBytes(),
+                    "amount".getBytes(),
+                    "senderData".getBytes(),
+                    "operatorData".getBytes(),
+                    ByteArrayHelpers.concatenateMultiple(data2));
         }
 
         public static void emitAuthorizedOperatorEvent(Address operator, Address tokenHolder) {
-            BlockchainRuntime.log(EmitAuthorizedOperatorEventString.getBytes(), ByteArrayHelpers.concatenate(operator.unwrap(), tokenHolder.unwrap()));
+            BlockchainRuntime.log(EmitAuthorizedOperatorEventString.getBytes(),
+                    "operator".getBytes(),
+                    "tokenHolder".getBytes(),
+                    ByteArrayHelpers.concatenate(operator.unwrap(), tokenHolder.unwrap()));
         }
 
         public static void emitRevokedOperatorEvent(Address operator, Address tokenHolder) {
-            BlockchainRuntime.log(EmitRevokedOperatorEventString.getBytes(), ByteArrayHelpers.concatenate(operator.unwrap(), tokenHolder.unwrap()));
+            BlockchainRuntime.log(EmitRevokedOperatorEventString.getBytes(),
+                    "operator".getBytes(),
+                    "tokenHolder".getBytes(),
+                    ByteArrayHelpers.concatenate(operator.unwrap(), tokenHolder.unwrap()));
         }
 
-        public static void emitTokenCreatedEvent(BigInteger totalSupply, Address contractOwner){
-            BlockchainRuntime.log(EmitTokenCreatedEventString.getBytes(), ByteArrayHelpers.concatenate(totalSupply.toByteArray(), contractOwner.unwrap()));
+        public static void emitTokenCreatedEvent(Address contractOwner, BigInteger totalSupply){
+            BlockchainRuntime.log(EmitTokenCreatedEventString.getBytes(),
+                    "owner".getBytes(),
+                    "totalSupply".getBytes(),
+                    ByteArrayHelpers.concatenate(contractOwner.unwrap(), totalSupply.toByteArray()));
         }
     }
 
