@@ -277,6 +277,7 @@ public class AionTokenStandardContract {
      */
     private static void initializeTotalSupply(long totalSupply) {
         balance.put(owner, totalSupply);
+        //ATSContractEvents.emitTokenCreatedEvent(totalSupply, owner);
     }
 
     /**
@@ -331,6 +332,7 @@ public class AionTokenStandardContract {
         private static String EmitBurnedEventString = "BurnedEvent";
         private static String EmitAuthorizedOperatorEventString = "AuthorizedOperatorEvent";
         private static String EmitRevokedOperatorEventString = "RevokedOperatorEvent";
+        private static String EmitTokenCreatedEventString = "TokenCreatedEvent";
 
         public static void emitSentEvent(Address operator, Address from, Address to, long amount, byte[] senderData, byte[] operatorData) {
             byte[][] data = new byte[6][];
@@ -395,6 +397,10 @@ public class AionTokenStandardContract {
 
         public static void emitRevokedOperatorEvent(Address operator, Address tokenHolder) {
             BlockchainRuntime.log(EmitRevokedOperatorEventString.getBytes(), ByteArrayHelpers.concatenate(operator.unwrap(), tokenHolder.unwrap()));
+        }
+
+        public static void emitTokenCreatedEvent(long totalSupply, Address contractOwner){
+            BlockchainRuntime.log(EmitTokenCreatedEventString.getBytes(), ByteArrayHelpers.concatenate(ByteArrayHelpers.longToBytes(totalSupply), contractOwner.unwrap()));
         }
     }
 
