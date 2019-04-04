@@ -298,10 +298,9 @@ public class AionTokenStandardContract {
         tokenSymbol = (String) arguments[1];
         tokenGranularity = (int) arguments[2];
         tokenTotalSupply = (long) arguments[3];
-        AionInterfaceRegistryAddress = (Address) arguments[4];
+        AionInterfaceRegistryAddress = (Address) arguments[4]; // todo: when we deploy, we should hardcode this 
         owner = BlockchainRuntime.getCaller();
 
-        // check for inputs todo: decision
         BlockchainRuntime.require(tokenName.length() > 0);
         BlockchainRuntime.require(tokenSymbol.length() > 0);
         BlockchainRuntime.require(tokenGranularity >= 1);
