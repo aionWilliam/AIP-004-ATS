@@ -20,8 +20,7 @@ public class AionTokenStandardContract {
     private static Address ATSContractAddress;
     private static Address AionInterfaceRegistryAddress;
 
-    private static AionMap<Address, BigInteger> balance; // <token holder, balance>
-    private static AionMap<Address, AionList<Address>> operators; // <token holder, list of operators>
+    private static AionMap<Address, TokenHolderInformation> tokenHolderInformation;
 
     private static final String InterfaceName = "AIP004Token";
 
@@ -67,7 +66,10 @@ public class AionTokenStandardContract {
      */
     @Callable
     public static byte[] balanceOf(Address tokenHolder) {
-        return balance.getOrDefault(tokenHolder, BigInteger.ZERO).toByteArray();
+        if (tokenHolderInformation.containsKey(tokenHolder)) {
+            return tokenHolderInformation.get(tokenHolder).balance.toByteArray();
+        }
+        return BigInteger.ZERO.toByteArray();
     }
 
 
@@ -81,16 +83,16 @@ public class AionTokenStandardContract {
     @Callable
     public static void authorizeOperator(Address operator) {
         Address caller = BlockchainRuntime.getCaller();
-        BlockchainRuntime.require(caller != operator);
+        BlockchainRuntime.require(caller != operator); // there is no point setting oneself as operator
 
-        if (operators.containsKey(caller)) {
-            if (!operators.get(caller).contains(operator)) {
-                operators.get(caller).add(operator);
+        if (tokenHolderInformation.containsKey(caller)) {
+            if (!tokenHolderInformation.get(caller).operators.contains(operator)) {
+                tokenHolderInformation.get(caller).operators.add(operator);
             }
         } else {
             AionList<Address> newOperatorList = new AionList<>();
             newOperatorList.add(operator);
-            operators.put(caller,newOperatorList);
+            tokenHolderInformation.put(caller, new AionTokenStandardContract.TokenHolderInformation(BigInteger.ZERO, newOperatorList));
         }
         ATSContractEvents.emitAuthorizedOperatorEvent(operator, caller);
     }
@@ -103,14 +105,14 @@ public class AionTokenStandardContract {
     @Callable
     public static void revokeOperator(Address operator) {
         Address caller = BlockchainRuntime.getCaller();
-        BlockchainRuntime.require(caller != operator);
+        BlockchainRuntime.require(caller != operator); // cannot revoke oneself from being an operator
 
-        if (operators.containsKey(caller)) {
-            if (operators.get(caller).contains(operator)) {
-                operators.get(caller).remove(operator);
+        if (tokenHolderInformation.containsKey(caller)) {
+            if (tokenHolderInformation.get(caller).operators.contains(operator)) {
+                tokenHolderInformation.get(caller).operators.remove(operator);
+                ATSContractEvents.emitRevokedOperatorEvent(operator, caller);
             }
         }
-        ATSContractEvents.emitRevokedOperatorEvent(operator, caller);
     }
 
     /**
@@ -125,8 +127,8 @@ public class AionTokenStandardContract {
         if (operator.equals(tokenHolder)) {
             return true;
         } else {
-            if (operators.containsKey(tokenHolder)) {
-                return operators.get(tokenHolder).contains(operator);
+            if (tokenHolderInformation.containsKey(tokenHolder)) {
+                return tokenHolderInformation.get(tokenHolder).operators.contains(operator);
             }
             else {
                 return false;
@@ -162,10 +164,10 @@ public class AionTokenStandardContract {
     public static void operatorSend(Address from, Address to, byte[] amount, byte[] data, byte[] operatorData) {
         Address caller = BlockchainRuntime.getCaller();
 
-        if (operators.get(from) == null || operators.get(from).isEmpty()) {
+        if (tokenHolderInformation.get(from) == null || tokenHolderInformation.get(from).operators.isEmpty()) {
             BlockchainRuntime.require(caller.equals(from)); // if there are no operators, check if caller is from itself
         } else {
-            BlockchainRuntime.require(operators.get(from).contains(caller)); // else caller must be an operator of 'from'
+            BlockchainRuntime.require(tokenHolderInformation.get(from).operators.contains(caller)); // else caller must be an operator of 'from'
         }
 
         doSend(caller, from, to, new BigInteger(amount), data, operatorData);
@@ -195,10 +197,10 @@ public class AionTokenStandardContract {
     public static void operatorBurn(Address from, byte[] amount, byte[] senderData, byte[] operatorData) {
         Address caller = BlockchainRuntime.getCaller();
 
-        if (operators.get(from) == null || operators.get(from).isEmpty()) {
+        if (tokenHolderInformation.get(from) == null || tokenHolderInformation.get(from).operators.isEmpty()) {
             BlockchainRuntime.require(caller.equals(from)); // if there are no operators, check if caller is from itself
         } else {
-            BlockchainRuntime.require(operators.get(from).contains(caller)); // else caller must be an operator of 'from'
+            BlockchainRuntime.require(tokenHolderInformation.get(from).operators.contains(caller)); // else caller must be an operator of 'from'
         }
 
         doBurn(caller, from, new BigInteger(amount), senderData, operatorData);
@@ -211,7 +213,7 @@ public class AionTokenStandardContract {
      */
     @Callable
     public static byte[] getLiquidSupply() {
-        return tokenTotalSupply.subtract(balance.get(ATSContractAddress)).toByteArray();
+        return tokenTotalSupply.subtract(tokenHolderInformation.get(ATSContractAddress).balance).toByteArray();
     }
 
     @Callable
@@ -245,12 +247,27 @@ public class AionTokenStandardContract {
         BlockchainRuntime.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
         BlockchainRuntime.require(amount.signum() > -1); // amount must not be negative, 0 is okay
 
-        BigInteger senderOriginalBalance = balance.get(from);
-        BlockchainRuntime.require(senderOriginalBalance.compareTo(amount) > -1); // amount must be greater or equal to sender balance
-        BigInteger receiverOriginalBalance = balance.get(to) != null ? balance.get(to) : BigInteger.ZERO;
+        // check if we have tokenHolderInformation of 'from'
+        if (tokenHolderInformation.get(from) == null) {
+            tokenHolderInformation.put(from, new TokenHolderInformation(BigInteger.ZERO, new AionList<>()));
+        }
 
-        balance.put(from, senderOriginalBalance.subtract(amount));
-        balance.put(to, receiverOriginalBalance.add(amount));
+        BigInteger senderOriginalBalance = tokenHolderInformation.get(from).balance;
+        BlockchainRuntime.require(senderOriginalBalance.compareTo(amount) > -1); // amount must be greater or equal to sender balance
+        BigInteger receiverOriginalBalance = tokenHolderInformation.get(to) != null ? tokenHolderInformation.get(to).balance : BigInteger.ZERO;
+
+        TokenHolderInformation newSenderInformation = new TokenHolderInformation(senderOriginalBalance.subtract(amount), tokenHolderInformation.get(from).operators);
+        TokenHolderInformation newReceiverInformation;
+
+        // check if we have tokenHolderInformation of 'to'
+        if (tokenHolderInformation.get(to) == null) {
+            newReceiverInformation = new TokenHolderInformation(receiverOriginalBalance.add(amount), new AionList<>());
+        } else {
+            newReceiverInformation = new TokenHolderInformation(receiverOriginalBalance.add(amount), tokenHolderInformation.get(to).operators);
+        }
+
+        tokenHolderInformation.put(from, newSenderInformation);
+        tokenHolderInformation.put(to, newReceiverInformation);
 
         ATSContractEvents.emitSentEvent(operator, from, to, amount, data, operatorData);
     }
@@ -262,11 +279,13 @@ public class AionTokenStandardContract {
         BlockchainRuntime.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
         BlockchainRuntime.require(amount.signum() > -1); // amount must not be negative, 0 is okay
 
-        BigInteger senderOriginalBalance = balance.get(from);
+        BigInteger senderOriginalBalance = tokenHolderInformation.get(from).balance;
         BlockchainRuntime.require(senderOriginalBalance.compareTo(amount) > -1);
 
-        balance.put(from, senderOriginalBalance.subtract(amount));
-        tokenTotalSupply = tokenTotalSupply .subtract(amount);
+        TokenHolderInformation newSenderInformation = new TokenHolderInformation(senderOriginalBalance.subtract(amount), tokenHolderInformation.get(from).operators);
+
+        tokenHolderInformation.put(from, newSenderInformation);
+        tokenTotalSupply = tokenTotalSupply.subtract(amount);
 
         ATSContractEvents.emitBurnedEvent(operator, from, amount, senderData, operatorData);
     }
@@ -275,7 +294,7 @@ public class AionTokenStandardContract {
      * Initializing the total supply by giving all the tokens to the contract creator.
      */
     private static void initializeTotalSupply(BigInteger totalSupply) {
-        balance.put(owner, totalSupply);
+        tokenHolderInformation.put(owner, new TokenHolderInformation(totalSupply, new AionList<>()));
         //ATSContractEvents.emitTokenCreatedEvent(totalSupply, owner);
     }
 
@@ -306,8 +325,7 @@ public class AionTokenStandardContract {
         BlockchainRuntime.require(AionInterfaceRegistryAddress != null);
 
         // setup inner data structures
-        balance = new AionMap<>();
-        operators = new AionMap<>();
+        tokenHolderInformation = new AionMap<>();
         ATSContractAddress = BlockchainRuntime.getAddress();
         initializeTotalSupply(tokenTotalSupply);
 
@@ -394,6 +412,34 @@ public class AionTokenStandardContract {
                     "totalSupply".getBytes(),
                     ByteArrayHelpers.concatenate(contractOwner.unwrap(), totalSupply.toByteArray()));
         }
+    }
+
+    private static class TokenHolderInformation {
+        BigInteger balance;
+        AionList<Address> operators;
+
+        private TokenHolderInformation(BigInteger balance, AionList<Address> operators) {
+            this.balance = balance;
+            this.operators = operators;
+        }
+//
+//        @Override
+//        public boolean equals(Object other) {
+//            if (!(other instanceof TokenHolderInformation)) {
+//                return false;
+//            }
+//            if (other == this) {
+//                return true;
+//            }
+//
+//            TokenHolderInformation otherTokenHolderInformation = (TokenHolderInformation) other;
+//            return otherTokenHolderInformation.balance == oth
+//        }
+//
+//        @Override
+//        public int hashCode() {
+//
+//        }
     }
 
     /**

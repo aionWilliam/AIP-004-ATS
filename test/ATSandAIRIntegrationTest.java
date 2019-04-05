@@ -233,6 +233,33 @@ public class ATSandAIRIntegrationTest {
         Assert.assertEquals(ATSTotalSupply.subtract(tokensToBurn), decodedResult2);
     }
 
+    @Test
+    public void testSenderHaveNoBalance() {
+        BigInteger tokensToSend = BigInteger.valueOf(100);
+        byte[] senderData = "sending 100 tokens to tokenHolder1Address".getBytes();
+
+        // send 100 tokens from tokenHolder1Address to tokenHolder2Address
+        TransactionResult txResult = callSend(tokenHolder2Address, tokensToSend, senderData, tokenHolder1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.FAILED_REVERT, txResult.getResultCode());
+    }
+
+    @Test
+    public void testSenderHaveNoBalanceButSendsZero() {
+        BigInteger tokensToSend = BigInteger.ZERO;
+        byte[] senderData = "sending 100 tokens to tokenHolder1Address".getBytes();
+
+        // send 100 tokens from tokenHolder1Address to tokenHolder2Address
+        TransactionResult txResult = callSend(tokenHolder2Address, tokensToSend, senderData, tokenHolder1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+
+        // check token balance of tokenHolder1Address
+        TransactionResult txResult2 = callBalanceOf(tokenHolder1Address, tokenHolder1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
+
+        BigInteger decodedResult = new BigInteger((byte[]) ABIDecoder.decodeOneObject(txResult2.getReturnData()));
+        Assert.assertEquals(BigInteger.ZERO, decodedResult);
+    }
+
     /** ========= ATS Contract Calling Methods========= */
     private TransactionResult callGetName(Address caller) {
         byte[] txData = ABIEncoder.encodeMethodArguments("getName");
