@@ -20,7 +20,7 @@ public class TokenHolderContract {
                 + " amount: " + new BigInteger(amount)
                 + " userData: " + userData
                 + " operatorData: " + operatorData
-                + " ] \n");
+                + " ]");
     }
 
     @Callable
@@ -32,7 +32,7 @@ public class TokenHolderContract {
                 + " amount: " + new BigInteger(amount)
                 + " userData: " + userData
                 + " operatorData: " + operatorData
-                + " ] \n");
+                + " ]");
     }
 
     private static TokenHolderContract tokenHolderContract;

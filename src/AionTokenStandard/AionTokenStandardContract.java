@@ -19,7 +19,7 @@ public class AionTokenStandardContract {
     private static Address owner;
     private static Address ATSContractAddress;
     private static Address AionInterfaceRegistryAddress;
-
+    private static Address zeroAddress = new Address("00000000000000000000000000000000".getBytes()); // todo: used to burn tokens
     private static AionMap<Address, TokenHolderInformation> tokenHolderInformation;
 
     private static final String InterfaceName = "AIP004Token";
@@ -269,13 +269,15 @@ public class AionTokenStandardContract {
         tokenHolderInformation.put(from, newSenderInformation);
         tokenHolderInformation.put(to, newReceiverInformation);
 
-        BlockchainRuntime.call(from, BigInteger.ZERO,
+        Result result = BlockchainRuntime.call(from, BigInteger.ZERO,
                 ABIEncoder.encodeMethodArguments("tokensToSend",
                         operator, from, to, amount.toByteArray(), data, operatorData), 10_000_000);
+        BlockchainRuntime.require(result != null && result.isSuccess());
 
-        BlockchainRuntime.call(to, BigInteger.ZERO,
+        Result result2 = BlockchainRuntime.call(to, BigInteger.ZERO,
                 ABIEncoder.encodeMethodArguments("tokensReceived",
                         operator, from, to, amount.toByteArray(), data, operatorData), 10_000_000);
+        BlockchainRuntime.require(result2 != null && result.isSuccess());
 
         ATSContractEvents.emitSentEvent(operator, from, to, amount, data, operatorData);
     }
@@ -297,7 +299,7 @@ public class AionTokenStandardContract {
 
         BlockchainRuntime.call(from, BigInteger.ZERO,
                 ABIEncoder.encodeMethodArguments("tokensToSend",
-                        operator, from, new byte[0], amount.toByteArray(), data, operatorData), 10_000_000);
+                        operator, from, zeroAddress, amount.toByteArray(), data, operatorData), 10_000_000);
 
         ATSContractEvents.emitBurnedEvent(operator, from, amount, data, operatorData);
     }
