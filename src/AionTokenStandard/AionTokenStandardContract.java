@@ -269,13 +269,21 @@ public class AionTokenStandardContract {
         tokenHolderInformation.put(from, newSenderInformation);
         tokenHolderInformation.put(to, newReceiverInformation);
 
+        BlockchainRuntime.call(from, BigInteger.ZERO,
+                ABIEncoder.encodeMethodArguments("tokensToSend",
+                        operator, from, to, amount.toByteArray(), data, operatorData), 10_000_000);
+
+        BlockchainRuntime.call(to, BigInteger.ZERO,
+                ABIEncoder.encodeMethodArguments("tokensReceived",
+                        operator, from, to, amount.toByteArray(), data, operatorData), 10_000_000);
+
         ATSContractEvents.emitSentEvent(operator, from, to, amount, data, operatorData);
     }
 
     /**
      * The internal burn implementation
      */
-    private static void doBurn (Address operator, Address from, BigInteger amount, byte[] senderData, byte[] operatorData) {
+    private static void doBurn (Address operator, Address from, BigInteger amount, byte[] data, byte[] operatorData) {
         BlockchainRuntime.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
         BlockchainRuntime.require(amount.signum() > -1); // amount must not be negative, 0 is okay
 
@@ -287,7 +295,11 @@ public class AionTokenStandardContract {
         tokenHolderInformation.put(from, newSenderInformation);
         tokenTotalSupply = tokenTotalSupply.subtract(amount);
 
-        ATSContractEvents.emitBurnedEvent(operator, from, amount, senderData, operatorData);
+        BlockchainRuntime.call(from, BigInteger.ZERO,
+                ABIEncoder.encodeMethodArguments("tokensToSend",
+                        operator, from, new byte[0], amount.toByteArray(), data, operatorData), 10_000_000);
+
+        ATSContractEvents.emitBurnedEvent(operator, from, amount, data, operatorData);
     }
 
     /**
