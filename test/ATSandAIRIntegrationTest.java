@@ -260,6 +260,21 @@ public class ATSandAIRIntegrationTest {
         Assert.assertEquals(BigInteger.ZERO, decodedResult);
     }
 
+    @Test
+    public void testSenderInsufficientBalance() {
+        BigInteger tokensToSend = BigInteger.valueOf(100);
+        BigInteger tokensToSend2 = BigInteger.valueOf(200);
+        byte[] senderData = "sending 100 tokens to tokenHolder1Address".getBytes();
+
+        // send 100 tokens from owner address (deployer) to tokenHolder1Address
+        TransactionResult txResult = callSend(tokenHolder1Address, tokensToSend, senderData, deployer);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+
+        // try to send 200 tokens from tokenHolder1Address to tokenHolder2Address
+        TransactionResult txResult2 = callSend(tokenHolder2Address, tokensToSend2, senderData, tokenHolder1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.FAILED_REVERT, txResult2.getResultCode());
+    }
+
     /** ========= ATS Contract Calling Methods========= */
     private TransactionResult callGetName(Address caller) {
         byte[] txData = ABIEncoder.encodeMethodArguments("getName");
