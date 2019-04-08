@@ -197,6 +197,78 @@ public class ATSandAIRIntegrationTest {
     }
 
     @Test
+    public void testSendZeroTokens() {
+        BigInteger tokensToSend = BigInteger.ZERO;
+        byte[] senderData = "sending tokens".getBytes();
+
+        TransactionResult txResult = callSend(tokenHolder1Address, tokensToSend.toByteArray(), senderData, ATSOwnerAddress);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+    }
+
+    @Test
+    public void testSendMoreTokensThanTotalSupply() {
+        BigInteger tokensToSend = ATSTotalSupply.add(BigInteger.ONE);
+        byte[] senderData = "sending tokens".getBytes();
+
+        TransactionResult txResult = callSend(tokenHolder1Address, tokensToSend.toByteArray(), senderData, ATSOwnerAddress);
+        Assert.assertEquals(AvmTransactionResult.Code.FAILED_REVERT, txResult.getResultCode());
+    }
+
+    @Test
+    public void testSendNegativeTokens() {
+        BigInteger tokensToSend = BigInteger.valueOf(-1);
+        byte[] senderData = "sending tokens".getBytes();
+
+        TransactionResult txResult = callSend(tokenHolder1Address, tokensToSend.toByteArray(), senderData, ATSOwnerAddress);
+        Assert.assertEquals(AvmTransactionResult.Code.FAILED_REVERT, txResult.getResultCode());
+    }
+
+    @Test
+    public void testBurnZeroTokens() {
+        BigInteger tokensToBurn = BigInteger.ZERO;
+        byte[] senderData = "burning tokens".getBytes();
+
+        TransactionResult txResult = callSend(tokenHolder1Address, tokensToBurn.toByteArray(), senderData, ATSOwnerAddress);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+
+        TransactionResult txResult2 = callGetTotalSupply(tokenHolder1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
+
+        byte[] decodedResult = (byte[]) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        Assert.assertEquals(ATSTotalSupply.subtract(tokensToBurn),new BigInteger(decodedResult));
+    }
+
+    @Test
+    public void testBurnMoreTokensThanTotalSupply() {
+        BigInteger tokensToBurn = ATSTotalSupply.add(BigInteger.ONE);
+        byte[] senderData = "burning tokens".getBytes();
+
+        TransactionResult txResult = callSend(tokenHolder1Address, tokensToBurn.toByteArray(), senderData, ATSOwnerAddress);
+        Assert.assertEquals(AvmTransactionResult.Code.FAILED_REVERT, txResult.getResultCode());
+
+        TransactionResult txResult2 = callGetTotalSupply(tokenHolder1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
+
+        byte[] decodedResult = (byte[]) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        Assert.assertEquals(ATSTotalSupply,new BigInteger(decodedResult));
+    }
+
+    @Test
+    public void testBurnNegativeTokens() {
+        BigInteger tokensToBurn = BigInteger.valueOf(-1);
+        byte[] senderData = "burning tokens".getBytes();
+
+        TransactionResult txResult = callSend(tokenHolder1Address, tokensToBurn.toByteArray(), senderData, ATSOwnerAddress);
+        Assert.assertEquals(AvmTransactionResult.Code.FAILED_REVERT, txResult.getResultCode());
+
+        TransactionResult txResult2 = callGetTotalSupply(tokenHolder1Address);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
+
+        byte[] decodedResult = (byte[]) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        Assert.assertEquals(ATSTotalSupply,new BigInteger(decodedResult));
+    }
+
+    @Test
     public void testOperatorSend() {
         BigInteger tokensToSend = BigInteger.valueOf(100);
         byte[] senderData = "".getBytes();
