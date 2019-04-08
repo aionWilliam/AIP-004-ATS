@@ -1,7 +1,7 @@
 package HelperContracts;
 
-import org.aion.avm.api.Address;
-import org.aion.avm.api.BlockchainRuntime;
+import avm.Address;
+import avm.Blockchain;
 import org.aion.avm.tooling.abi.Callable;
 import org.aion.avm.userlib.abi.ABIDecoder;
 
@@ -13,7 +13,7 @@ public class TokenHolderContract {
 
     @Callable
     public static void tokensReceived(Address operator, Address from, Address to, byte[] amount, byte[] userData, byte[] operatorData) {
-        BlockchainRuntime.println("TOKENS RECEIVED: " + name
+        Blockchain.println("TOKENS RECEIVED: " + name
                 + " [operator: " + operator
                 + " from: " + from
                 + " to: " + to
@@ -25,7 +25,7 @@ public class TokenHolderContract {
 
     @Callable
     public static void tokensToSend(Address operator, Address from, Address to, byte[] amount, byte[] userData, byte[] operatorData) {
-        BlockchainRuntime.println("TOKENS TO SEND: " + name
+        Blockchain.println("TOKENS TO SEND: " + name
                 + " [operator: " + operator
                 + " from: " + from
                 + " to: " + to
@@ -35,15 +35,15 @@ public class TokenHolderContract {
                 + " ]");
     }
 
-    private static TokenHolderContract tokenHolderContract;
+    //private static TokenHolderContract tokenHolderContract;
 
     static {
-        Object[] arguments = ABIDecoder.decodeDeploymentArguments(BlockchainRuntime.getData());
-        BlockchainRuntime.require(arguments != null);
-        BlockchainRuntime.require(arguments.length == 1);
+        ABIDecoder decoder = new ABIDecoder(Blockchain.getData());
+        String arg = decoder.decodeOneString();
+        Blockchain.require(arg != null);
 
-        tokenHolderContract = new TokenHolderContract();
-        name = (String) arguments[0];
+        //tokenHolderContract = new TokenHolderContract();
+        name = arg;
     }
 
 }

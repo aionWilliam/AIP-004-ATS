@@ -1,10 +1,9 @@
 import AionInterfaceRegistry.AionInterfaceRegistryContract;
 import HelperContracts.Interface1ImplementerContract;
-import org.aion.avm.api.Address;
+import avm.Address;
+import org.aion.avm.core.util.ABIUtil;
 import org.aion.avm.tooling.AvmRule;
 import org.aion.avm.tooling.hash.HashUtils;
-import org.aion.avm.userlib.abi.ABIDecoder;
-import org.aion.avm.userlib.abi.ABIEncoder;
 import org.aion.kernel.AvmTransactionResult;
 import org.aion.vm.api.interfaces.TransactionResult;
 import org.junit.*;
@@ -62,7 +61,7 @@ public class AionInterfaceRegistryTest {
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
         // expect the result to be contract2Address
-        Address result = (Address) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        Address result = (Address) ABIUtil.decodeOneObject(txResult2.getReturnData());
         Assert.assertEquals(Hex.toHexString(contract2Address.unwrap()), Hex.toHexString(result.unwrap()));
     }
 
@@ -81,7 +80,7 @@ public class AionInterfaceRegistryTest {
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult3.getResultCode());
 
         // expect the result to be contract3Address
-        Address result = (Address) ABIDecoder.decodeOneObject(txResult3.getReturnData());
+        Address result = (Address) ABIUtil.decodeOneObject(txResult3.getReturnData());
         Assert.assertEquals(Hex.toHexString(contract3Address.unwrap()), Hex.toHexString(result.unwrap()));
     }
 
@@ -99,7 +98,7 @@ public class AionInterfaceRegistryTest {
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
         // expect the result to be contract1Address
-        Address result = (Address) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        Address result = (Address) ABIUtil.decodeOneObject(txResult2.getReturnData());
         Assert.assertEquals(Hex.toHexString(contract1Address.unwrap()) , Hex.toHexString(result.unwrap()));
     }
 
@@ -112,7 +111,7 @@ public class AionInterfaceRegistryTest {
         TransactionResult txResult2 = callGetInterfaceImplementer(contract1Address, generateInterfaceHash("Interface1"), contract1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
-        Address result = (Address) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        Address result = (Address) ABIUtil.decodeOneObject(txResult2.getReturnData());
         Assert.assertEquals(Hex.toHexString(contract2Address.unwrap()), Hex.toHexString(result.unwrap()));
     }
 
@@ -125,7 +124,7 @@ public class AionInterfaceRegistryTest {
         TransactionResult txResult2 = callGetInterfaceImplementer(contract1Address, generateInterfaceHash("Interface1"), contract1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
-        Address result = (Address) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        Address result = (Address) ABIUtil.decodeOneObject(txResult2.getReturnData());
         Assert.assertEquals(Hex.toHexString(contract1Address.unwrap()) , Hex.toHexString(result.unwrap()));
     }
 
@@ -166,35 +165,35 @@ public class AionInterfaceRegistryTest {
         // get interface implementers and check if they are all correct
         TransactionResult txResult7 = callGetInterfaceImplementer(contract1Address, generateInterfaceHash("Interface1"), contract1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult7.getResultCode());
-        Assert.assertEquals(Hex.toHexString(contract3Address.unwrap()) , Hex.toHexString(((Address) ABIDecoder.decodeOneObject(txResult7.getReturnData())).unwrap()));
+        Assert.assertEquals(Hex.toHexString(contract3Address.unwrap()) , Hex.toHexString(((Address) ABIUtil.decodeOneObject(txResult7.getReturnData())).unwrap()));
 
         TransactionResult txResult8 = callGetInterfaceImplementer(contract2Address, generateInterfaceHash("Interface1"), contract1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult8.getResultCode());
-        Assert.assertEquals(Hex.toHexString(contract3Address.unwrap()) , Hex.toHexString(((Address) ABIDecoder.decodeOneObject(txResult8.getReturnData())).unwrap()));
+        Assert.assertEquals(Hex.toHexString(contract3Address.unwrap()) , Hex.toHexString(((Address) ABIUtil.decodeOneObject(txResult8.getReturnData())).unwrap()));
 
         TransactionResult txResult9 = callGetInterfaceImplementer(contract3Address, generateInterfaceHash("Interface1"), contract1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult9.getResultCode());
-        Assert.assertEquals(Hex.toHexString(contract1Address.unwrap()) , Hex.toHexString(((Address) ABIDecoder.decodeOneObject(txResult9.getReturnData())).unwrap()));
+        Assert.assertEquals(Hex.toHexString(contract1Address.unwrap()) , Hex.toHexString(((Address) ABIUtil.decodeOneObject(txResult9.getReturnData())).unwrap()));
     }
 
     /** ========= AIR Contract Calling Methods========= */
     private TransactionResult callSetManager(Address target, Address newManager, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("setManager", target, newManager);
+        byte[] txData = ABIUtil.encodeMethodArguments("setManager", target, newManager);
         return avmRule.call(caller, dappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callGetManager(Address target, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("getManager", target);
+        byte[] txData = ABIUtil.encodeMethodArguments("getManager", target);
         return avmRule.call(caller, dappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callSetInterfaceImplementer(Address target, byte[] interfaceHash, Address implementer, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("setInterfaceImplementer", target, interfaceHash, implementer);
+        byte[] txData = ABIUtil.encodeMethodArguments("setInterfaceImplementer", target, interfaceHash, implementer);
         return avmRule.call(caller, dappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callGetInterfaceImplementer(Address target, byte[] interfaceHash, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("getInterfaceImplementer", target, interfaceHash);
+        byte[] txData = ABIUtil.encodeMethodArguments("getInterfaceImplementer", target, interfaceHash);
         return avmRule.call(caller, dappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 

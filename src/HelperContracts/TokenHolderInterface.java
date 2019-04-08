@@ -1,6 +1,6 @@
 package HelperContracts;
 
-import org.aion.avm.api.Address;
+import avm.Address;
 
 public interface TokenHolderInterface {
 

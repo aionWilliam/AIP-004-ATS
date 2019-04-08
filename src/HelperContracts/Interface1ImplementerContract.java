@@ -1,7 +1,7 @@
 package HelperContracts;
 
-import org.aion.avm.api.Address;
-import org.aion.avm.api.BlockchainRuntime;
+import avm.Address;
+import avm.Blockchain;
 import org.aion.avm.tooling.abi.Callable;
 
 import java.util.Arrays;
@@ -16,7 +16,7 @@ public class Interface1ImplementerContract {
      */
     @Callable
     public static boolean isImplementerFor(Address target, byte[] interfaceHash) {
-        byte[] hash = BlockchainRuntime.sha256(interfaceImplemented.getBytes());
+        byte[] hash = Blockchain.sha256(interfaceImplemented.getBytes());
         if (Arrays.equals(hash, interfaceHash)) {
             return true;
         }
@@ -28,7 +28,7 @@ public class Interface1ImplementerContract {
     static {
         interface1ImplementerContract = new Interface1ImplementerContract();
         interfaceImplemented = "Interface1";
-        addressSupport = BlockchainRuntime.getAddress();
+        addressSupport = Blockchain.getAddress();
     }
 
 }

@@ -1,6 +1,6 @@
 package AionTokenStandard;
 
-import org.aion.avm.api.Address;
+import avm.Address;
 
 public interface AionTokenStandardInterface {
 

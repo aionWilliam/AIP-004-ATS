@@ -1,6 +1,8 @@
 package AionInterfaceRegistry;
 
-import org.aion.avm.api.*;
+import avm.Address;
+import avm.Blockchain;
+import avm.Result;
 import org.aion.avm.tooling.abi.Callable;
 import org.aion.avm.userlib.AionMap;
 import org.aion.avm.userlib.abi.ABIDecoder;
@@ -35,8 +37,8 @@ public class AionInterfaceRegistryContract {
      */
     @Callable
     public static void setManager(Address target, Address newManager) {
-        Address caller = BlockchainRuntime.getCaller();
-        BlockchainRuntime.require(caller.equals(target) || caller.equals(getManager(target)));
+        Address caller = Blockchain.getCaller();
+        Blockchain.require(caller.equals(target) || caller.equals(getManager(target)));
 
         if (target == newManager) { // if setting self as manager, remove old manager if it is present
             managers.remove(target); // note in solidity impl, they set the manager to 0x0
@@ -67,17 +69,19 @@ public class AionInterfaceRegistryContract {
      */
     @Callable
     public static void setInterfaceImplementer(Address target, byte[] interfaceHash, Address implementer) {
-        Address caller = BlockchainRuntime.getCaller();
+        Address caller = Blockchain.getCaller();
         Address manager = getManager(target);
-        BlockchainRuntime.require(manager.equals(caller) || target.equals(caller)); // should only allow manager and target itself to set implementer
+        Blockchain.require(manager.equals(caller) || target.equals(caller)); // should only allow manager and target itself to set implementer
 
         // if the caller is not the implementer, call the implementer to verify it implements the AIRImplementerInterface
         if (!implementer.equals(caller)) {
-            Result callResult = BlockchainRuntime.call(implementer, BigInteger.ZERO, ABIEncoder.encodeMethodArguments("isImplementerFor", target, interfaceHash), 10_000_000);
-            BlockchainRuntime.require(callResult != null);
+            Result callResult = checkImplementer(implementer, "isImplementerFor", target, interfaceHash);
+            Blockchain.require(callResult != null);
             byte[] data = callResult.getReturnData();
-            boolean result = (boolean)ABIDecoder.decodeOneObject(data);
-            BlockchainRuntime.require(result);
+
+            ABIDecoder decoder = new ABIDecoder(data);
+            boolean result = decoder.decodeOneBoolean();
+            Blockchain.require(result);
         }
 
         // set up inner interfaces map
@@ -92,6 +96,18 @@ public class AionInterfaceRegistryContract {
         interfacesImplemented.put(new ByteArrayWrapper(interfaceHash), implementer);
         interfaces.put(target, interfacesImplemented);
         AIRContractEvents.emitInterfaceImplementerSetEvent(target, interfaceHash, implementer);
+    }
+
+    /**
+     * Setup arguments and calls implementer to check if it implements the given interface
+     */
+    private static Result checkImplementer(Address implementer, String methodName, Address target, byte[] interfaceHash) {
+        byte[] methodNameEncoded = ABIEncoder.encodeOneString(methodName);
+        byte[] targetEncoded = ABIEncoder.encodeOneAddress(target);
+        byte[] interfaceHashEncoded = ABIEncoder.encodeOneByteArray(interfaceHash);
+        byte[] data = ByteArrayHelpers.concatenateMultiple(new byte[][]{methodNameEncoded, targetEncoded, interfaceHashEncoded});
+
+        return Blockchain.call(implementer, BigInteger.ZERO, data, 10_000_000);
     }
 
     /**
@@ -116,11 +132,11 @@ public class AionInterfaceRegistryContract {
             data[1] = interfaceHash;
             data[2] = delegate.unwrap();
 
-            BlockchainRuntime.log(EmitInterfaceImplementerSetEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
+            Blockchain.log(EmitInterfaceImplementerSetEventString.getBytes(), ByteArrayHelpers.concatenateMultiple(data));
         }
 
         public static void emitManagerChangedEvent(Address target, Address newManager) {
-            BlockchainRuntime.log(EmitManagerChangedEventString.getBytes(), ByteArrayHelpers.concatenate(target.unwrap(), newManager.unwrap()));
+            Blockchain.log(EmitManagerChangedEventString.getBytes(), ByteArrayHelpers.concatenate(target.unwrap(), newManager.unwrap()));
         }
     }
 

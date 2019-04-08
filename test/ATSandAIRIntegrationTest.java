@@ -1,11 +1,10 @@
 import AionInterfaceRegistry.AionInterfaceRegistryContract;
 import AionTokenStandard.AionTokenStandardContract;
 import HelperContracts.TokenHolderContract;
-import org.aion.avm.api.Address;
+import avm.Address;
+import org.aion.avm.core.util.ABIUtil;
 import org.aion.avm.tooling.AvmRule;
 import org.aion.avm.tooling.hash.HashUtils;
-import org.aion.avm.userlib.abi.ABIDecoder;
-import org.aion.avm.userlib.abi.ABIEncoder;
 import org.aion.kernel.AvmTransactionResult;
 import org.aion.vm.api.interfaces.TransactionResult;
 import org.junit.*;
@@ -41,7 +40,7 @@ public class ATSandAIRIntegrationTest {
     @Before
     public void setup() {
         // create a token holder contract to be used as the owner to deploy the ATS contract
-        byte[] txData5 = avmRule.getDappBytes(TokenHolderContract.class, ABIEncoder.encodeDeploymentArguments(ATSOwnerName));
+        byte[] txData5 = avmRule.getDappBytes(TokenHolderContract.class, ABIUtil.encodeDeploymentArguments(ATSOwnerName));
         ATSOwnerAddress = avmRule.deploy(deployer, BigInteger.ZERO, txData5, energyLimit, energyPrice).getDappAddress();
         Assert.assertNotNull(ATSOwnerAddress);
         // give some balance
@@ -53,16 +52,16 @@ public class ATSandAIRIntegrationTest {
         Assert.assertNotNull(AIRDappAddress);
 
         // deploy ATS
-        byte[] txData2 = avmRule.getDappBytes(AionTokenStandardContract.class, ABIEncoder.encodeDeploymentArguments(ATSName, ATSSymbol, ATSGranularity, ATSTotalSupply.toByteArray(), AIRDappAddress));
+        byte[] txData2 = avmRule.getDappBytes(AionTokenStandardContract.class, ABIUtil.encodeDeploymentArguments(ATSName, ATSSymbol, ATSGranularity, ATSTotalSupply.toByteArray(), AIRDappAddress));
         ATSDappAddress = avmRule.deploy(ATSOwnerAddress, BigInteger.ZERO, txData2, energyLimit, energyPrice).getDappAddress();
         Assert.assertNotNull(ATSDappAddress);
 
         // set up token holder contracts and give some balance
-        byte[] txData3 = avmRule.getDappBytes(TokenHolderContract.class, ABIEncoder.encodeDeploymentArguments(tokenHolder1Name));
+        byte[] txData3 = avmRule.getDappBytes(TokenHolderContract.class, ABIUtil.encodeDeploymentArguments(tokenHolder1Name));
         tokenHolder1Address = avmRule.deploy(deployer, BigInteger.ZERO, txData3, energyLimit, energyPrice).getDappAddress();
         Assert.assertNotNull(tokenHolder1Address);
 
-        byte[] txData4 = avmRule.getDappBytes(TokenHolderContract.class, ABIEncoder.encodeDeploymentArguments(tokenHolder2Name));
+        byte[] txData4 = avmRule.getDappBytes(TokenHolderContract.class, ABIUtil.encodeDeploymentArguments(tokenHolder2Name));
         tokenHolder2Address = avmRule.deploy(deployer, BigInteger.ZERO, txData4, energyLimit, energyPrice).getDappAddress();
         Assert.assertNotNull(tokenHolder2Address);
 
@@ -78,7 +77,7 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult1 = callGetName(deployer);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult1.getResultCode());
 
-        String decodedResult = (String) ABIDecoder.decodeOneObject(txResult1.getReturnData());
+        String decodedResult = (String) ABIUtil.decodeOneObject(txResult1.getReturnData());
         Assert.assertEquals(ATSName, decodedResult);
     }
 
@@ -87,7 +86,7 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult = callGetSymbol(deployer);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
 
-        String decodedResult = (String) ABIDecoder.decodeOneObject(txResult.getReturnData());
+        String decodedResult = (String) ABIUtil.decodeOneObject(txResult.getReturnData());
         Assert.assertEquals(ATSSymbol, decodedResult);
     }
 
@@ -96,7 +95,7 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult = callGetTotalSupply(deployer);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
 
-        BigInteger decodedResult = new BigInteger((byte[]) ABIDecoder.decodeOneObject(txResult.getReturnData()));
+        BigInteger decodedResult = new BigInteger((byte[]) ABIUtil.decodeOneObject(txResult.getReturnData()));
         Assert.assertEquals(ATSTotalSupply, decodedResult);
     }
 
@@ -105,7 +104,7 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult = callGetGranularity(deployer);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
 
-        int decodedResult = (int) ABIDecoder.decodeOneObject(txResult.getReturnData());
+        int decodedResult = (int) ABIUtil.decodeOneObject(txResult.getReturnData());
         Assert.assertEquals(ATSGranularity, decodedResult);
     }
 
@@ -114,7 +113,7 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult = callBalanceOf(tokenHolder1Address, tokenHolder1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
 
-        BigInteger decodedResult = new BigInteger((byte[]) ABIDecoder.decodeOneObject(txResult.getReturnData()));
+        BigInteger decodedResult = new BigInteger((byte[]) ABIUtil.decodeOneObject(txResult.getReturnData()));
         Assert.assertEquals(BigInteger.ZERO, decodedResult);
     }
 
@@ -123,7 +122,7 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult = callBalanceOf(ATSOwnerAddress, ATSOwnerAddress);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
 
-        BigInteger decodedResult = new BigInteger((byte[]) ABIDecoder.decodeOneObject(txResult.getReturnData()));
+        BigInteger decodedResult = new BigInteger((byte[]) ABIUtil.decodeOneObject(txResult.getReturnData()));
         Assert.assertEquals(ATSTotalSupply, decodedResult);
     }
 
@@ -135,7 +134,7 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult2 = callIsOperatorFor(tokenHolder2Address, tokenHolder1Address, ATSOwnerAddress);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
-        boolean decodedResult = (boolean) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        boolean decodedResult = (boolean) ABIUtil.decodeOneObject(txResult2.getReturnData());
         Assert.assertTrue(decodedResult);
 
         TransactionResult txResult3 = callRevokeOperatorOperator(tokenHolder2Address, tokenHolder1Address);
@@ -144,7 +143,7 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult4 = callIsOperatorFor(tokenHolder2Address, tokenHolder1Address, ATSOwnerAddress);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult4.getResultCode());
 
-        boolean decodedResult2 = (boolean) ABIDecoder.decodeOneObject(txResult4.getReturnData());
+        boolean decodedResult2 = (boolean) ABIUtil.decodeOneObject(txResult4.getReturnData());
         Assert.assertFalse(decodedResult2);
     }
 
@@ -161,14 +160,14 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult2 = callBalanceOf(tokenHolder1Address, tokenHolder1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
-        BigInteger decodedResult = new BigInteger((byte[]) ABIDecoder.decodeOneObject(txResult2.getReturnData()));
+        BigInteger decodedResult = new BigInteger((byte[]) ABIUtil.decodeOneObject(txResult2.getReturnData()));
         Assert.assertEquals(tokensToSend, decodedResult);
 
         // check token balance of owner address
         TransactionResult txResult3 = callBalanceOf(ATSOwnerAddress, ATSOwnerAddress);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult3.getResultCode());
 
-        BigInteger decodedResult2 = new BigInteger((byte[]) ABIDecoder.decodeOneObject(txResult3.getReturnData()));
+        BigInteger decodedResult2 = new BigInteger((byte[]) ABIUtil.decodeOneObject(txResult3.getReturnData()));
         Assert.assertEquals(ATSTotalSupply.subtract(tokensToSend), decodedResult2);
     }
 
@@ -185,14 +184,14 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult2 = callBalanceOf(ATSOwnerAddress, ATSOwnerAddress);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
-        BigInteger decodedResult = new BigInteger((byte[]) ABIDecoder.decodeOneObject(txResult2.getReturnData()));
+        BigInteger decodedResult = new BigInteger((byte[]) ABIUtil.decodeOneObject(txResult2.getReturnData()));
         Assert.assertEquals(ATSTotalSupply.subtract(tokensToBurn), decodedResult);
 
         // check the decrease in totalSupply
         TransactionResult txResult3 = callGetTotalSupply(ATSOwnerAddress);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult3.getResultCode());
 
-        BigInteger decodedResult2 = new BigInteger((byte[]) ABIDecoder.decodeOneObject(txResult3.getReturnData()));
+        BigInteger decodedResult2 = new BigInteger((byte[]) ABIUtil.decodeOneObject(txResult3.getReturnData()));
         Assert.assertEquals(ATSTotalSupply.subtract(tokensToBurn), decodedResult2);
     }
 
@@ -234,7 +233,7 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult2 = callGetTotalSupply(tokenHolder1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
-        byte[] decodedResult = (byte[]) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        byte[] decodedResult = (byte[]) ABIUtil.decodeOneObject(txResult2.getReturnData());
         Assert.assertEquals(ATSTotalSupply.subtract(tokensToBurn),new BigInteger(decodedResult));
     }
 
@@ -249,7 +248,7 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult2 = callGetTotalSupply(tokenHolder1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
-        byte[] decodedResult = (byte[]) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        byte[] decodedResult = (byte[]) ABIUtil.decodeOneObject(txResult2.getReturnData());
         Assert.assertEquals(ATSTotalSupply,new BigInteger(decodedResult));
     }
 
@@ -264,7 +263,7 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult2 = callGetTotalSupply(tokenHolder1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
-        byte[] decodedResult = (byte[]) ABIDecoder.decodeOneObject(txResult2.getReturnData());
+        byte[] decodedResult = (byte[]) ABIUtil.decodeOneObject(txResult2.getReturnData());
         Assert.assertEquals(ATSTotalSupply,new BigInteger(decodedResult));
     }
 
@@ -282,14 +281,14 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult2 = callBalanceOf(tokenHolder1Address, tokenHolder1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
-        BigInteger decodedResult = new BigInteger((byte[]) ABIDecoder.decodeOneObject(txResult2.getReturnData()));
+        BigInteger decodedResult = new BigInteger((byte[]) ABIUtil.decodeOneObject(txResult2.getReturnData()));
         Assert.assertEquals(tokensToSend, decodedResult);
 
         // check token balance of ATSOwner
         TransactionResult txResult3 = callBalanceOf(ATSOwnerAddress, ATSOwnerAddress);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult3.getResultCode());
 
-        BigInteger decodedResult2 = new BigInteger((byte[]) ABIDecoder.decodeOneObject(txResult3.getReturnData()));
+        BigInteger decodedResult2 = new BigInteger((byte[]) ABIUtil.decodeOneObject(txResult3.getReturnData()));
         Assert.assertEquals(ATSTotalSupply.subtract(tokensToSend), decodedResult2);
     }
 
@@ -307,14 +306,14 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult2 = callBalanceOf(ATSOwnerAddress, ATSOwnerAddress);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
-        BigInteger decodedResult = new BigInteger((byte[]) ABIDecoder.decodeOneObject(txResult2.getReturnData()));
+        BigInteger decodedResult = new BigInteger((byte[]) ABIUtil.decodeOneObject(txResult2.getReturnData()));
         Assert.assertEquals(ATSTotalSupply.subtract(tokensToBurn), decodedResult);
 
         // check the decrease in totalSupply
         TransactionResult txResult3 = callGetTotalSupply(ATSOwnerAddress);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult3.getResultCode());
 
-        BigInteger decodedResult2 = new BigInteger((byte[]) ABIDecoder.decodeOneObject(txResult3.getReturnData()));
+        BigInteger decodedResult2 = new BigInteger((byte[]) ABIUtil.decodeOneObject(txResult3.getReturnData()));
         Assert.assertEquals(ATSTotalSupply.subtract(tokensToBurn), decodedResult2);
     }
 
@@ -341,7 +340,7 @@ public class ATSandAIRIntegrationTest {
         TransactionResult txResult2 = callBalanceOf(tokenHolder1Address, tokenHolder1Address);
         Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult2.getResultCode());
 
-        BigInteger decodedResult = new BigInteger((byte[]) ABIDecoder.decodeOneObject(txResult2.getReturnData()));
+        BigInteger decodedResult = new BigInteger((byte[]) ABIUtil.decodeOneObject(txResult2.getReturnData()));
         Assert.assertEquals(BigInteger.ZERO, decodedResult);
     }
 
@@ -362,83 +361,83 @@ public class ATSandAIRIntegrationTest {
 
     /** ========= ATS Contract Calling Methods========= */
     private TransactionResult callGetName(Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("getName");
+        byte[] txData = ABIUtil.encodeMethodArguments("getName");
         return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callGetSymbol(Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("getSymbol");
+        byte[] txData = ABIUtil.encodeMethodArguments("getSymbol");
         return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callGetTotalSupply(Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("getTotalSupply");
+        byte[] txData = ABIUtil.encodeMethodArguments("getTotalSupply");
         return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callGetGranularity(Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("getGranularity");
+        byte[] txData = ABIUtil.encodeMethodArguments("getGranularity");
         return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callBalanceOf(Address tokenHolder, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("balanceOf", tokenHolder);
+        byte[] txData = ABIUtil.encodeMethodArguments("balanceOf", tokenHolder);
         return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callAuthorizeOperator(Address operator, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("authorizeOperator", operator);
+        byte[] txData = ABIUtil.encodeMethodArguments("authorizeOperator", operator);
         return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callRevokeOperatorOperator(Address operator, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("revokeOperator", operator);
+        byte[] txData = ABIUtil.encodeMethodArguments("revokeOperator", operator);
         return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callIsOperatorFor(Address operator, Address tokenHolder, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("isOperatorFor", operator, tokenHolder);
+        byte[] txData = ABIUtil.encodeMethodArguments("isOperatorFor", operator, tokenHolder);
         return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callSend(Address to, byte[] amount, byte[] data, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("send", to, amount, data);
+        byte[] txData = ABIUtil.encodeMethodArguments("send", to, amount, data);
         return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callBurn(byte[] amount, byte[] data, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("burn", amount, data);
+        byte[] txData = ABIUtil.encodeMethodArguments("burn", amount, data);
         return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callOperatorSend(Address from, Address to, byte[] amount, byte[] data, byte[] operatorData, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("operatorSend", from, to, amount, data, operatorData);
+        byte[] txData = ABIUtil.encodeMethodArguments("operatorSend", from, to, amount, data, operatorData);
         return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callOperatorBurn(Address from, byte[] amount, byte[] data, byte[] operatorData, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("operatorBurn", from, amount, data, operatorData);
+        byte[] txData = ABIUtil.encodeMethodArguments("operatorBurn", from, amount, data, operatorData);
         return avmRule.call(caller, ATSDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     /** ========= AIR Contract Calling Methods========= */
     private TransactionResult callSetManager(Address target, Address newManager, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("setManager", target, newManager);
+        byte[] txData = ABIUtil.encodeMethodArguments("setManager", target, newManager);
         return avmRule.call(caller, AIRDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callGetManager(Address target, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("getManager", target);
+        byte[] txData = ABIUtil.encodeMethodArguments("getManager", target);
         return avmRule.call(caller, AIRDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callSetInterfaceImplementer(Address target, byte[] interfaceHash, Address implementer, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("setInterfaceImplementer", target, interfaceHash, implementer);
+        byte[] txData = ABIUtil.encodeMethodArguments("setInterfaceImplementer", target, interfaceHash, implementer);
         return avmRule.call(caller, AIRDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
     private TransactionResult callGetInterfaceImplementer(Address target, byte[] interfaceHash, Address caller) {
-        byte[] txData = ABIEncoder.encodeMethodArguments("getInterfaceImplementer", target, interfaceHash);
+        byte[] txData = ABIUtil.encodeMethodArguments("getInterfaceImplementer", target, interfaceHash);
         return avmRule.call(caller, AIRDappAddress, BigInteger.ZERO, txData, energyLimit, energyPrice).getTransactionResult();
     }
 
