@@ -271,11 +271,15 @@ public class AionTokenStandardContract {
         tokenHolderInformation.put(from, newSenderInformation);
         tokenHolderInformation.put(to, newReceiverInformation);
 
-        Result result = callTokenHolder(from, "tokensToSend", operator, from, to, amount, data, operatorData);
-        Blockchain.require(result != null && result.isSuccess());
-
-        Result result2 = callTokenHolder(to, "tokensReceived", operator, from, to, amount, data, operatorData);
-        Blockchain.require(result2 != null && result2.isSuccess());
+        // call these addresses if they are a contract
+        if (isContractAddress(from)) {
+            Result result = callTokenHolder(from, "tokensToSend", operator, from, to, amount, data, operatorData);
+            Blockchain.require(result != null && result.isSuccess());
+        }
+        if (isContractAddress(to)) {
+            Result result2 = callTokenHolder(to, "tokensReceived", operator, from, to, amount, data, operatorData);
+            Blockchain.require(result2 != null && result2.isSuccess());
+        }
 
         ATSContractEvents.emitSentEvent(operator, from, to, amount, data, operatorData);
     }
@@ -295,8 +299,11 @@ public class AionTokenStandardContract {
         tokenHolderInformation.put(from, newSenderInformation);
         tokenTotalSupply = tokenTotalSupply.subtract(amount);
 
-        Result result = callTokenHolder(from, "tokensToSend", operator, from, zeroAddress, amount, data, operatorData);
-        Blockchain.require(result != null && result.isSuccess());
+        // call the sender if its a contract
+        if (isContractAddress(from)) {
+            Result result = callTokenHolder(from, "tokensToSend", operator, from, zeroAddress, amount, data, operatorData);
+            Blockchain.require(result != null && result.isSuccess());
+        }
 
         ATSContractEvents.emitBurnedEvent(operator, from, amount, data, operatorData);
     }
@@ -315,6 +322,15 @@ public class AionTokenStandardContract {
         arguments[6] = ABIEncoder.encodeOneByteArray(operatorData);
 
         return Blockchain.call(contractToCall, BigInteger.ZERO, ByteArrayHelpers.concatenateMultiple(arguments), 10_000_000);
+    }
+
+    /**
+     * Return true if the given address is a contract, false otherwise.
+     * todo: we only want to call functions of TokenHolderInterface if the address is a contract, need a way to decide this.
+     * todo: need to change this, but for now we are using contracts that implements TokenHolderInterface for testing
+     */
+    private static boolean isContractAddress(Address address) {
+        return true;
     }
 
     /**
