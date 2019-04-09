@@ -450,24 +450,6 @@ public class AionTokenStandardContract {
             this.balance = balance;
             this.operators = operators;
         }
-//
-//        @Override
-//        public boolean equals(Object other) {
-//            if (!(other instanceof TokenHolderInformation)) {
-//                return false;
-//            }
-//            if (other == this) {
-//                return true;
-//            }
-//
-//            TokenHolderInformation otherTokenHolderInformation = (TokenHolderInformation) other;
-//            return otherTokenHolderInformation.balance == oth
-//        }
-//
-//        @Override
-//        public int hashCode() {
-//
-//        }
     }
 
     /**

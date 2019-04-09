@@ -35,15 +35,10 @@ public class TokenHolderContract {
                 + " ]");
     }
 
-    //private static TokenHolderContract tokenHolderContract;
-
     static {
         ABIDecoder decoder = new ABIDecoder(Blockchain.getData());
         String arg = decoder.decodeOneString();
         Blockchain.require(arg != null);
-
-        //tokenHolderContract = new TokenHolderContract();
         name = arg;
     }
-
 }
