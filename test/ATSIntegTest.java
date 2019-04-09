@@ -10,6 +10,7 @@ import org.aion.vm.api.interfaces.TransactionResult;
 import org.junit.*;
 
 import java.math.BigInteger;
+import java.util.Random;
 
 public class ATSIntegTest {
     @Rule
@@ -79,16 +80,84 @@ public class ATSIntegTest {
         avmRule.balanceTransfer(deployer, tokenHolder3Address, BigInteger.valueOf(1_000_000_000L), energyLimit, energyPrice);
     }
 
+    /**
+     * This test will perform the following calls and verify that the contract is working:
+     * Setup:
+     *   - Create a list of token holder contract.
+     *   - Give these contracts some balance so they can pay for gas when making calls.
+     *   - Create a list of BigInteger, holder the expected balance for each token holder contract.
+     *   - Initialize this list.
+     *
+     * Calls:
+     *   - in a loop, send random amount of tokens, to a randomly picked token holder address.
+     *   - record each of the token transfer in our local balance list.
+     *   - loop through each token holder and check that the results match.
+     *   - verify that the ATS owner has the expected number of tokens
+     *   - verify that the total supply is still the right number.
+     */
     @Test
     public void testMultifunction() {
-        BigInteger tokensToSend = BigInteger.valueOf(100);
+        Address[] tokenHolderContract = new Address[10];
+        BigInteger[] tokenHolderContractBalance = new BigInteger[10];
+        for (int i = 0; i < tokenHolderContract.length; i++) {
+            // initialize tokenHolderContract
+            byte[] tokenHolderContractCreationData = avmRule.getDappBytes(TokenHolderContract.class, ABIUtil.encodeDeploymentArguments("tokenHolder" + (i)));
+            tokenHolderContract[i] = avmRule.deploy(deployer, BigInteger.ZERO, tokenHolderContractCreationData, energyLimit, energyPrice).getDappAddress();
+            Assert.assertNotNull(tokenHolderContract[i]);
+            avmRule.balanceTransfer(deployer, tokenHolderContract[i], BigInteger.valueOf(1_000_000_000L), energyLimit, energyPrice);
 
-        // give some tokens to tokenHolder1
-        TransactionResult txResult = callSend(tokenHolder1Address, tokensToSend.toByteArray(), new byte[0], ATSOwnerAddress);
-        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+            // initialize tokenHolderContractBalance
+            tokenHolderContractBalance[i] = BigInteger.ZERO;
+        }
 
-        // sent tokenHolder2 as operator for tokenHolder1
+        // now lets try giving these contracts some tokens
+        int loopCount = 1000; // can set this
+        for (int i = 0; i < loopCount; i ++) {
+            int contractIndex = getRandomNumber(10);
+            int tokenAmount = getRandomNumber(1000); // todo: try to make a less uniformed distribution
 
+            // send the tokens from ATS owner
+            TransactionResult txResult = callSend(tokenHolderContract[contractIndex], BigInteger.valueOf(tokenAmount).toByteArray(), new byte[0], ATSOwnerAddress);
+            Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, txResult.getResultCode());
+            tokenHolderContractBalance[contractIndex] = tokenHolderContractBalance[contractIndex].add(BigInteger.valueOf(tokenAmount));
+        }
+
+        // now lets check that all the token holder contracts has the right amount of tokens
+        System.out.println("\nTOKEN HOLDER BALANCE: ");
+        int sum = 0;
+        for (int i = 0; i < tokenHolderContract.length; i++) {
+            // retrieve what ATS contract has in its ledger
+            TransactionResult result = callBalanceOf(tokenHolderContract[i], ATSOwnerAddress);
+            Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, result.getResultCode());
+            BigInteger decodedResult = new BigInteger((byte[]) ABIUtil.decodeOneObject(result.getReturnData()));
+
+            // check if they are equal
+            Assert.assertEquals(tokenHolderContractBalance[i], decodedResult);
+            System.out.println("TokenHolder" + i + ": " + decodedResult);
+
+            sum += decodedResult.intValue();
+
+            // get the ATS owner balance
+            if (i == tokenHolderContract.length -1) {
+                result = callBalanceOf(ATSOwnerAddress, ATSOwnerAddress);
+                Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, result.getResultCode());
+                decodedResult = new BigInteger((byte[]) ABIUtil.decodeOneObject(result.getReturnData()));
+
+                System.out.println("ATS owner: " + decodedResult);
+                Assert.assertEquals(ATSTotalSupply.subtract(BigInteger.valueOf(sum)), decodedResult);
+            }
+        }
+
+        // check that total supply is still as expected
+        TransactionResult result = callGetTotalSupply(ATSOwnerAddress);
+        Assert.assertEquals(AvmTransactionResult.Code.SUCCESS, result.getResultCode());
+        BigInteger decodedResult = new BigInteger((byte[]) ABIUtil.decodeOneObject(result.getReturnData()));
+        Assert.assertEquals(ATSTotalSupply, decodedResult);
+    }
+
+    private int getRandomNumber(int limit) {
+        Random random = new Random();
+        return  random.nextInt(limit);
     }
 
     /** ========= ATS Contract Calling Methods========= */
