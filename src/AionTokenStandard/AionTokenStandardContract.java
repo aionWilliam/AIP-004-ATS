@@ -4,12 +4,13 @@ import avm.Address;
 import avm.Blockchain;
 import avm.Result;
 import org.aion.avm.tooling.abi.Callable;
+import org.aion.avm.userlib.AionBuffer;
 import org.aion.avm.userlib.AionList;
-import org.aion.avm.userlib.AionMap;
 import org.aion.avm.userlib.abi.ABIDecoder;
 import org.aion.avm.userlib.abi.ABIEncoder;
 
 import java.math.BigInteger;
+import java.util.Arrays;
 
 public class AionTokenStandardContract {
 
@@ -22,7 +23,6 @@ public class AionTokenStandardContract {
     private static Address ATSContractAddress;
     private static Address AionInterfaceRegistryAddress;
     private static Address zeroAddress = new Address("00000000000000000000000000000000".getBytes()); // todo: used to burn tokens
-    private static AionMap<Address, TokenHolderInformation> tokenHolderInformation;
 
     private static final String InterfaceName = "AIP004Token";
 
@@ -68,10 +68,12 @@ public class AionTokenStandardContract {
      */
     @Callable
     public static byte[] balanceOf(Address tokenHolder) {
-        if (tokenHolderInformation.containsKey(tokenHolder)) {
-            return tokenHolderInformation.get(tokenHolder).balance.toByteArray();
+        byte[] data = Blockchain.getStorage(tokenHolder.unwrap());
+        if (data == null) {
+            return BigInteger.ZERO.toByteArray();
         }
-        return BigInteger.ZERO.toByteArray();
+
+        return TokenHolderInformation.decodeBalance(data).toByteArray();
     }
 
 
@@ -86,16 +88,20 @@ public class AionTokenStandardContract {
     public static void authorizeOperator(Address operator) {
         Address caller = Blockchain.getCaller();
         Blockchain.require(caller != operator); // there is no point setting oneself as operator
+        byte[] callerBytes = caller.unwrap();
 
-        if (tokenHolderInformation.containsKey(caller)) {
-            if (!tokenHolderInformation.get(caller).operators.contains(operator)) {
-                tokenHolderInformation.get(caller).operators.add(operator);
-            }
+        byte[] data = Blockchain.getStorage(callerBytes);
+
+        if (data == null) { // there has been no information stored for this address (caller)
+            AionList<Address> operators = new AionList<>();
+            operators.add(operator);
+            Blockchain.putStorage(callerBytes,TokenHolderInformation.encode(BigInteger.ZERO, operators));
         } else {
-            AionList<Address> newOperatorList = new AionList<>();
-            newOperatorList.add(operator);
-            tokenHolderInformation.put(caller, new AionTokenStandardContract.TokenHolderInformation(BigInteger.ZERO, newOperatorList));
+            BigInteger balance = TokenHolderInformation.decodeBalance(data);
+            AionList<Address> operators = TokenHolderInformation.decodeOperators(data);
+            Blockchain.putStorage(callerBytes, TokenHolderInformation.encode(balance, operators));
         }
+
         ATSContractEvents.emitAuthorizedOperatorEvent(operator, caller);
     }
 
@@ -107,13 +113,15 @@ public class AionTokenStandardContract {
     @Callable
     public static void revokeOperator(Address operator) {
         Address caller = Blockchain.getCaller();
-        Blockchain.require(caller != operator); // cannot revoke oneself from being an operator
+        Blockchain.require(caller != operator); // there is no point setting oneself as operator
+        byte[] callerBytes = caller.unwrap();
 
-        if (tokenHolderInformation.containsKey(caller)) {
-            if (tokenHolderInformation.get(caller).operators.contains(operator)) {
-                tokenHolderInformation.get(caller).operators.remove(operator);
-                ATSContractEvents.emitRevokedOperatorEvent(operator, caller);
-            }
+        byte[] data = Blockchain.getStorage(callerBytes);
+        if (data != null) {
+            AionList<Address> operators = TokenHolderInformation.decodeOperators(data);
+            operators.remove(operator);
+            BigInteger balance = TokenHolderInformation.decodeBalance(data);
+            Blockchain.putStorage(callerBytes, TokenHolderInformation.encode(balance, operators));
         }
     }
 
@@ -129,12 +137,13 @@ public class AionTokenStandardContract {
         if (operator.equals(tokenHolder)) {
             return true;
         } else {
-            if (tokenHolderInformation.containsKey(tokenHolder)) {
-                return tokenHolderInformation.get(tokenHolder).operators.contains(operator);
-            }
-            else {
+            byte[] callerBytes = Blockchain.getCaller().unwrap();
+            byte[] data = Blockchain.getStorage(tokenHolder.unwrap());
+            if (data == null) {
                 return false;
             }
+            AionList<Address> operators = TokenHolderInformation.decodeOperators(data);
+            return operators.contains(operator);
         }
     }
 
@@ -145,12 +154,12 @@ public class AionTokenStandardContract {
      *
      * @param to token recipient
      * @param amount number of tokens to send
-     * @param data information of the transfer
+     * @param senderData information of the transfer
      */
     @Callable
-    public static void send(Address to, byte[] amount, byte[] data) {
+    public static void send(Address to, byte[] amount, byte[] senderData) {
         Address caller = Blockchain.getCaller();
-        doSend(caller, caller, to, new BigInteger(amount), data, new byte[0]);
+        doSend(caller, caller, to, new BigInteger(amount), senderData, new byte[0]);
     }
 
     /**
@@ -159,20 +168,26 @@ public class AionTokenStandardContract {
      * @param from token holder
      * @param to token recipient
      * @param amount number of tokens to send
-     * @param data information of the transfer
+     * @param senderData information of the transfer
      * @param operatorData information from the operator
      */
     @Callable
-    public static void operatorSend(Address from, Address to, byte[] amount, byte[] data, byte[] operatorData) {
+    public static void operatorSend(Address from, Address to, byte[] amount, byte[] senderData, byte[] operatorData) {
         Address caller = Blockchain.getCaller();
 
-        if (tokenHolderInformation.get(from) == null || tokenHolderInformation.get(from).operators.isEmpty()) {
-            Blockchain.require(caller.equals(from)); // if there are no operators, check if caller is from itself
-        } else {
-            Blockchain.require(tokenHolderInformation.get(from).operators.contains(caller)); // else caller must be an operator of 'from'
+        // if 'caller' equals 'from', do send
+        if (caller.equals(from)) {
+            doSend(caller, from, to, new BigInteger(amount), senderData, operatorData);
         }
 
-        doSend(caller, from, to, new BigInteger(amount), data, operatorData);
+        // else check for operator
+        byte[] fromData = Blockchain.getStorage(from.unwrap());
+        Blockchain.require(fromData != null);
+
+        AionList<Address> operators = TokenHolderInformation.decodeOperators(fromData);
+        if (operators.contains(caller)) {
+            doSend(caller, from, to, new BigInteger(amount), senderData, operatorData);
+        }
     }
 
     /**
@@ -199,13 +214,19 @@ public class AionTokenStandardContract {
     public static void operatorBurn(Address from, byte[] amount, byte[] senderData, byte[] operatorData) {
         Address caller = Blockchain.getCaller();
 
-        if (tokenHolderInformation.get(from) == null || tokenHolderInformation.get(from).operators.isEmpty()) {
-            Blockchain.require(caller.equals(from)); // if there are no operators, check if caller is from itself
-        } else {
-            Blockchain.require(tokenHolderInformation.get(from).operators.contains(caller)); // else caller must be an operator of 'from'
+        // if 'caller' equals 'from', do send
+        if (caller.equals(from)) {
+            doBurn(caller, from, new BigInteger(amount), senderData, operatorData);
         }
 
-        doBurn(caller, from, new BigInteger(amount), senderData, operatorData);
+        // else check for operator
+        byte[] fromData = Blockchain.getStorage(from.unwrap());
+        Blockchain.require(fromData != null);
+
+        AionList<Address> operators = TokenHolderInformation.decodeOperators(fromData);
+        if (operators.contains(caller)) {
+            doBurn(caller, from, new BigInteger(amount), senderData, operatorData);
+        }
     }
 
     /** ==================================== Cross-chain Functionality ==================================== **/
@@ -215,7 +236,7 @@ public class AionTokenStandardContract {
      */
     @Callable
     public static byte[] getLiquidSupply() {
-        return tokenTotalSupply.subtract(tokenHolderInformation.get(ATSContractAddress).balance).toByteArray();
+        return tokenTotalSupply.subtract(TokenHolderInformation.decodeBalance(Blockchain.getStorage(ATSContractAddress.unwrap()))).toByteArray();
     }
 
     @Callable
@@ -249,27 +270,32 @@ public class AionTokenStandardContract {
         Blockchain.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
         Blockchain.require(amount.signum() > -1); // amount must not be negative, 0 is okay
 
-        // check if we have tokenHolderInformation of 'from'
-        if (tokenHolderInformation.get(from) == null) {
-            tokenHolderInformation.put(from, new TokenHolderInformation(BigInteger.ZERO, new AionList<>()));
-        }
-
-        BigInteger senderOriginalBalance = tokenHolderInformation.get(from).balance;
-        Blockchain.require(senderOriginalBalance.compareTo(amount) > -1); // amount must be greater or equal to sender balance
-        BigInteger receiverOriginalBalance = tokenHolderInformation.get(to) != null ? tokenHolderInformation.get(to).balance : BigInteger.ZERO;
-
-        TokenHolderInformation newSenderInformation = new TokenHolderInformation(senderOriginalBalance.subtract(amount), tokenHolderInformation.get(from).operators);
-        TokenHolderInformation newReceiverInformation;
-
-        // check if we have tokenHolderInformation of 'to'
-        if (tokenHolderInformation.get(to) == null) {
-            newReceiverInformation = new TokenHolderInformation(receiverOriginalBalance.add(amount), new AionList<>());
+        // check sender info
+        BigInteger senderOriginalBalance;
+        AionList<Address> senderOriginalOperators;
+        byte[] fromData = Blockchain.getStorage(from.unwrap());
+        if (fromData == null) {
+            senderOriginalBalance = BigInteger.ZERO;
+            senderOriginalOperators = new AionList<>();
         } else {
-            newReceiverInformation = new TokenHolderInformation(receiverOriginalBalance.add(amount), tokenHolderInformation.get(to).operators);
+            senderOriginalBalance = TokenHolderInformation.decodeBalance(fromData);
+            senderOriginalOperators = TokenHolderInformation.decodeOperators(fromData);
         }
 
-        tokenHolderInformation.put(from, newSenderInformation);
-        tokenHolderInformation.put(to, newReceiverInformation);
+        // check receiver info
+        BigInteger receiverOriginalBalance;
+        AionList<Address> receiverOriginalOperators;
+        byte[] toData = Blockchain.getStorage(to.unwrap());
+        if (toData == null) {
+            receiverOriginalBalance = BigInteger.ZERO;
+            receiverOriginalOperators = new AionList<>();
+        } else {
+            receiverOriginalBalance = TokenHolderInformation.decodeBalance(toData);
+            receiverOriginalOperators = TokenHolderInformation.decodeOperators(toData);
+        }
+
+        // check transfer requirements
+        Blockchain.require(senderOriginalBalance.compareTo(amount) > -1); // amount must be greater or equal to sender balance
 
         // call these addresses if they are a contract
         if (isContractAddress(from)) {
@@ -281,6 +307,14 @@ public class AionTokenStandardContract {
             Blockchain.require(result2 != null && result2.isSuccess());
         }
 
+        // do the transfer
+        BigInteger senderAfterBalance = senderOriginalBalance.subtract(amount);
+        Blockchain.putStorage(from.unwrap(), TokenHolderInformation.encode(senderAfterBalance, senderOriginalOperators));
+
+        BigInteger receiverAfterBalance = receiverOriginalBalance.add(amount);
+        Blockchain.putStorage(to.unwrap(), TokenHolderInformation.encode(receiverAfterBalance, receiverOriginalOperators));
+
+        // emit sent event
         ATSContractEvents.emitSentEvent(operator, from, to, amount, data, operatorData);
     }
 
@@ -291,13 +325,20 @@ public class AionTokenStandardContract {
         Blockchain.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
         Blockchain.require(amount.signum() > -1); // amount must not be negative, 0 is okay
 
-        BigInteger senderOriginalBalance = tokenHolderInformation.get(from).balance;
-        Blockchain.require(senderOriginalBalance.compareTo(amount) > -1);
+        // check sender info
+        BigInteger senderOriginalBalance;
+        AionList<Address> senderOriginalOperators;
+        byte[] fromData = Blockchain.getStorage(from.unwrap());
+        if (fromData == null) {
+            senderOriginalBalance = BigInteger.ZERO;
+            senderOriginalOperators = new AionList<>();
+        } else {
+            senderOriginalBalance = TokenHolderInformation.decodeBalance(fromData);
+            senderOriginalOperators = TokenHolderInformation.decodeOperators(fromData);
+        }
 
-        TokenHolderInformation newSenderInformation = new TokenHolderInformation(senderOriginalBalance.subtract(amount), tokenHolderInformation.get(from).operators);
-
-        tokenHolderInformation.put(from, newSenderInformation);
-        tokenTotalSupply = tokenTotalSupply.subtract(amount);
+        // check transfer requirements
+        Blockchain.require(senderOriginalBalance.compareTo(amount) > -1); // amount must be greater or equal to sender balance
 
         // call the sender if its a contract
         if (isContractAddress(from)) {
@@ -305,6 +346,13 @@ public class AionTokenStandardContract {
             Blockchain.require(result != null && result.isSuccess());
         }
 
+        // do the transfer
+        BigInteger senderAfterBalance = senderOriginalBalance.subtract(amount);
+        Blockchain.putStorage(from.unwrap(), TokenHolderInformation.encode(senderAfterBalance, senderOriginalOperators));
+
+        tokenTotalSupply = tokenTotalSupply.subtract(amount);
+
+        // emit burned event
         ATSContractEvents.emitBurnedEvent(operator, from, amount, data, operatorData);
     }
 
@@ -337,7 +385,7 @@ public class AionTokenStandardContract {
      * Initializing the total supply by giving all the tokens to the contract creator.
      */
     private static void initializeTotalSupply(BigInteger totalSupply) {
-        tokenHolderInformation.put(owner, new TokenHolderInformation(totalSupply, new AionList<>()));
+        Blockchain.putStorage(owner.unwrap(), TokenHolderInformation.encode(totalSupply, new AionList<>()));
         //ATSContractEvents.emitTokenCreatedEvent(totalSupply, owner);
     }
 
@@ -364,7 +412,6 @@ public class AionTokenStandardContract {
         Blockchain.require(AionInterfaceRegistryAddress != null);
 
         // setup inner data structures
-        tokenHolderInformation = new AionMap<>();
         ATSContractAddress = Blockchain.getAddress();
         initializeTotalSupply(tokenTotalSupply);
 
@@ -458,13 +505,50 @@ public class AionTokenStandardContract {
         }
     }
 
+    /**
+     * When storing this object in the key-value store, we will use the following encoding format
+     * - byte[0:31]: token balance
+     * - byte[32:64]: number of operators
+     * - every 32 bytes after: an operator address
+     *
+     * The first two fields of byte[] will be filled to 32 bytes length in order to store these values in a consistent
+     * manner, making decoding very simple.
+     */
     private static class TokenHolderInformation {
-        BigInteger balance;
-        AionList<Address> operators;
+        private static final int TOKEN_BALANCE_LENGTH = 32;
+        private static final int OPERATOR_COUNT_LENGTH = 32;
 
-        private TokenHolderInformation(BigInteger balance, AionList<Address> operators) {
-            this.balance = balance;
-            this.operators = operators;
+
+        private static byte[] encode(BigInteger balance, AionList<Address> operators) {
+            int numberOfOperators = operators.size();
+            byte[] balanceBytes = ByteArrayHelpers.fillLeadingZeros(balance.toByteArray());
+            byte[] operatorsCountBytes = ByteArrayHelpers.fillLeadingZeros(BigInteger.valueOf(numberOfOperators).toByteArray());
+
+            AionBuffer buffer = AionBuffer.allocate(balanceBytes.length  + operatorsCountBytes.length + numberOfOperators * Address.LENGTH);
+
+            buffer.put(balanceBytes).put(operatorsCountBytes);
+
+            for (Address operator: operators) {
+                buffer.put(operator.unwrap());
+            }
+
+            return buffer.getArray();
+        }
+
+        private static BigInteger decodeBalance(byte[] data) {
+            return new BigInteger(Arrays.copyOfRange(data, 0, TOKEN_BALANCE_LENGTH));
+        }
+
+        private static AionList<Address> decodeOperators(byte[] data) {
+            AionList<Address> operators = new AionList<>();
+            BigInteger numberOfOperator = new BigInteger(Arrays.copyOfRange(data, TOKEN_BALANCE_LENGTH, TOKEN_BALANCE_LENGTH + OPERATOR_COUNT_LENGTH));
+
+            if (numberOfOperator.signum() >= 0) {
+                for (int i = (TOKEN_BALANCE_LENGTH + OPERATOR_COUNT_LENGTH); i < (TOKEN_BALANCE_LENGTH + OPERATOR_COUNT_LENGTH) + numberOfOperator.intValue() * Address.LENGTH; i = i + Address.LENGTH) {
+                    operators.add(new Address(Arrays.copyOfRange(data, i, i + Address.LENGTH)));
+                }
+            }
+            return operators;
         }
     }
 
@@ -486,6 +570,18 @@ public class AionTokenStandardContract {
                 result = concatenate(result, bytes1);
             }
             return result;
+        }
+        public static byte[] fillLeadingZeros(byte[] byteArray) {
+            if (byteArray.length >= 32) {
+                return byteArray;
+            }
+
+            byte[] zeroBytes = new byte[32 - byteArray.length];
+            for (int i = 0; i < zeroBytes.length; i++) {
+                zeroBytes[i] = 0x0;
+            }
+
+            return AionBuffer.allocate(32).put(zeroBytes).put(byteArray).getArray();
         }
     }
 }
