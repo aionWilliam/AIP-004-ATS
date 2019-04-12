@@ -22,7 +22,7 @@ public class AionTokenStandardContract {
     private static Address owner;
     private static Address ATSContractAddress;
     private static Address AionInterfaceRegistryAddress;
-    private static Address zeroAddress = new Address("00000000000000000000000000000000".getBytes()); // todo: used to burn tokens
+    private static Address zeroAddress = new Address("00000000000000000000000000000000".getBytes());
 
     private static final String InterfaceName = "AIP004Token";
 
@@ -75,7 +75,6 @@ public class AionTokenStandardContract {
 
         return TokenHolderInformation.decodeBalance(data).toByteArray();
     }
-
 
     /** ==================================== ERC-777 Operator Functionality ==================================== **/
 
@@ -137,7 +136,6 @@ public class AionTokenStandardContract {
         if (operator.equals(tokenHolder)) {
             return true;
         } else {
-            byte[] callerBytes = Blockchain.getCaller().unwrap();
             byte[] data = Blockchain.getStorage(tokenHolder.unwrap());
             if (data == null) {
                 return false;
@@ -269,6 +267,8 @@ public class AionTokenStandardContract {
     private static void doSend(Address operator, Address from, Address to, BigInteger amount, byte[] data, byte[] operatorData) {
         Blockchain.require(satisfyGranularity(amount)); // amount must be a multiple of the set tokenGranularity
         Blockchain.require(amount.signum() > -1); // amount must not be negative, 0 is okay
+        Blockchain.require(!to.equals(zeroAddress)); // forbid sending to zero address (burning)
+        Blockchain.require(!to.equals(ATSContractAddress)); // forbid sending to ATS contract itself
 
         // check sender info
         BigInteger senderOriginalBalance;
@@ -298,11 +298,11 @@ public class AionTokenStandardContract {
         Blockchain.require(senderOriginalBalance.compareTo(amount) > -1); // amount must be greater or equal to sender balance
 
         // call these addresses if they are a contract
-        if (isContractAddress(from)) {
+        if (isRegularAddress(from)) {
             Result result = callTokenHolder(from, "tokensToSend", operator, from, to, amount, data, operatorData);
             Blockchain.require(result != null && result.isSuccess());
         }
-        if (isContractAddress(to)) {
+        if (isRegularAddress(to)) {
             Result result2 = callTokenHolder(to, "tokensReceived", operator, from, to, amount, data, operatorData);
             Blockchain.require(result2 != null && result2.isSuccess());
         }
@@ -341,7 +341,7 @@ public class AionTokenStandardContract {
         Blockchain.require(senderOriginalBalance.compareTo(amount) > -1); // amount must be greater or equal to sender balance
 
         // call the sender if its a contract
-        if (isContractAddress(from)) {
+        if (isRegularAddress(from)) {
             Result result = callTokenHolder(from, "tokensToSend", operator, from, zeroAddress, amount, data, operatorData);
             Blockchain.require(result != null && result.isSuccess());
         }
@@ -377,8 +377,8 @@ public class AionTokenStandardContract {
      * todo: we only want to call functions of TokenHolderInterface if the address is a contract, need a way to decide this.
      * todo: need to change this, but for now we are using contracts that implements TokenHolderInterface for testing
      */
-    private static boolean isContractAddress(Address address) {
-        return true;
+    private static boolean isRegularAddress(Address address) {
+        return false; // set to true to test  along tokenHolder contract
     }
 
     /**
@@ -517,7 +517,6 @@ public class AionTokenStandardContract {
     private static class TokenHolderInformation {
         private static final int TOKEN_BALANCE_LENGTH = 32;
         private static final int OPERATOR_COUNT_LENGTH = 32;
-
 
         private static byte[] encode(BigInteger balance, AionList<Address> operators) {
             int numberOfOperators = operators.size();
