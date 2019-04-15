@@ -508,7 +508,6 @@ public class AionTokenStandardContract {
     /**
      * When storing this object in the key-value store, we will use the following encoding format
      * - byte[0:31]: token balance
-     * - byte[32:64]: number of operators
      * - every 32 bytes after: an operator address
      *
      * The first two fields of byte[] will be filled to 32 bytes length in order to store these values in a consistent
@@ -516,16 +515,13 @@ public class AionTokenStandardContract {
      */
     private static class TokenHolderInformation {
         private static final int TOKEN_BALANCE_LENGTH = 32;
-        private static final int OPERATOR_COUNT_LENGTH = 32;
 
         private static byte[] encode(BigInteger balance, AionList<Address> operators) {
-            int numberOfOperators = operators.size();
             byte[] balanceBytes = ByteArrayHelpers.fillLeadingZeros(balance.toByteArray());
-            byte[] operatorsCountBytes = ByteArrayHelpers.fillLeadingZeros(BigInteger.valueOf(numberOfOperators).toByteArray());
 
-            AionBuffer buffer = AionBuffer.allocate(balanceBytes.length  + operatorsCountBytes.length + numberOfOperators * Address.LENGTH);
+            AionBuffer buffer = AionBuffer.allocate(balanceBytes.length + operators.size() * Address.LENGTH);
 
-            buffer.put(balanceBytes).put(operatorsCountBytes);
+            buffer.put(balanceBytes);
 
             for (Address operator: operators) {
                 buffer.put(operator.unwrap());
@@ -540,12 +536,9 @@ public class AionTokenStandardContract {
 
         private static AionList<Address> decodeOperators(byte[] data) {
             AionList<Address> operators = new AionList<>();
-            BigInteger numberOfOperator = new BigInteger(Arrays.copyOfRange(data, TOKEN_BALANCE_LENGTH, TOKEN_BALANCE_LENGTH + OPERATOR_COUNT_LENGTH));
 
-            if (numberOfOperator.signum() >= 0) {
-                for (int i = (TOKEN_BALANCE_LENGTH + OPERATOR_COUNT_LENGTH); i < (TOKEN_BALANCE_LENGTH + OPERATOR_COUNT_LENGTH) + numberOfOperator.intValue() * Address.LENGTH; i = i + Address.LENGTH) {
-                    operators.add(new Address(Arrays.copyOfRange(data, i, i + Address.LENGTH)));
-                }
+            for (int i = TOKEN_BALANCE_LENGTH; i < data.length; i = i + Address.LENGTH) {
+                operators.add(new Address(Arrays.copyOfRange(data, i, i + Address.LENGTH)));
             }
             return operators;
         }
